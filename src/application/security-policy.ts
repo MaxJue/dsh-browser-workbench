@@ -52,8 +52,7 @@ export function bindBrowserSafetyPolicy(ctx: Context, runtime: BrowserRuntime, o
     const splitViewMutation = exec.name === 'browser_split_view' && isRecord(exec.arguments) && exec.arguments.action !== 'status'
     // 隔离世界仍共享页面 DOM 并可发起网络请求，因此任意 JavaScript 求值都不能按只读能力放行。
     const evaluateSensitive = exec.name === 'browser_evaluate'
-    const takeoverMutation = exec.name === 'browser_takeover' && isRecord(exec.arguments) && exec.arguments.action !== 'status'
-    const v2Sensitive = debuggerSensitiveRead || diagnoseSensitiveRead || recorderMutation || networkSensitive || profileSensitive || providerMutation || extensionMutation || emulateMutation || evaluateSensitive || takeoverMutation
+    const v2Sensitive = debuggerSensitiveRead || diagnoseSensitiveRead || recorderMutation || networkSensitive || profileSensitive || providerMutation || extensionMutation || emulateMutation || evaluateSensitive
     // 空白页签不访问外部地址，继续免审批；携带非空 URL 的 new 与 browser_navigate 具有相同导航副作用。
     const tabNavigation = exec.name === 'browser_tabs' && isRecord(exec.arguments) && exec.arguments.action === 'new' && typeof exec.arguments.url === 'string' && exec.arguments.url.trim() !== '' && exec.arguments.url.trim() !== 'about:blank'
     // 导航、对话框与指针交互同样改变页面状态（并可能触发外部网络副作用），属于交互能力。

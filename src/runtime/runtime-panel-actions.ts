@@ -3,8 +3,7 @@ import { join } from 'node:path'
 import { fail } from '../domain/errors.ts'
 import { assertUrlAllowed } from '../domain/policy.ts'
 import type { Identity, SessionState, ToolOutput, ViewState } from '../domain/types.ts'
-import type { BrowserDebuggerInput, BrowserEmulateInput, BrowserExtensionInput, BrowserFrameCursor, BrowserInputTraceUpdate, BrowserLiveViewInput, BrowserNetworkInput, BrowserPanelActivity, BrowserPanelSnapshot, BrowserPanelTabInput, BrowserPanelView, BrowserProfileInput, BrowserProviderInput, BrowserRecorderInput, BrowserSplitViewInput, BrowserSplitViewPane, BrowserTakeoverInput, BrowserUserInput } from '../domain/protocol.ts'
-import { classifyInputFailure, summarizeInputCharacters, type InputTraceRecord } from '../diagnostics/input-trace.ts'
+import type { BrowserDebuggerInput, BrowserEmulateInput, BrowserExtensionInput, BrowserFrameCursor, BrowserLiveViewInput, BrowserNetworkInput, BrowserPanelActivity, BrowserPanelSnapshot, BrowserPanelTabInput, BrowserPanelView, BrowserProfileInput, BrowserProviderInput, BrowserRecorderInput, BrowserSplitViewInput, BrowserSplitViewPane } from '../domain/protocol.ts'
 import { STANDARD_VIEWPORT } from '../view/viewport.ts'
 import { pendingSessionKey } from '../session/session-key.ts'
 import { rawCdp } from '../cdp/cdp-raw.ts'
@@ -15,195 +14,6 @@ function asData(value: unknown): ToolOutput['data'] {
 }
 
 export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
-  async panelTakeover(sessionId: string, input: BrowserTakeoverInput): Promise<ToolOutput> {
-    const session = this.sessionById(sessionId)
-    if (session === undefined) return { ok: false, action: 'takeover', data: asData({ code: 'BROWSER_SESSION_NOT_READY', recoverable: true, message: 'browser session is not ready' }) }
-    return this.queueSession(session, () => this.takeoverAction(session, input))
-  }
-
-  async panelInputTrace(sessionId: string, input: BrowserInputTraceUpdate): Promise<ToolOutput> {
-    const session = this.sessionById(sessionId)
-    if (session === undefined) return { ok: false, action: 'input_trace', data: asData({ code: 'BROWSER_SESSION_NOT_READY', recoverable: true, message: 'browser session is not ready' }) }
-    return this.queueSession(session, async () => {
-      const recorder = this.recorder.status(session.sessionId, session.key)
-      if (recorder.mode === 'off' || recorder.status !== 'recording') return { ok: true, action: 'input_trace', viewId: input.viewId, data: asData({ recorded: false }) }
-      const timestamp = Math.min(input.timestamp, Date.now())
-      const trace = this.inputTraces.ensure({
-        inputTraceId: input.inputTraceId,
-        sessionKey: session.key,
-        viewId: input.viewId,
-        action: input.action,
-        sensitivity: input.sensitivity,
-        ...(input.characters === undefined ? {} : { characters: input.characters }),
-        composing: input.composing,
-        timestamp,
-      })
-      this.inputTraces.stage(session.key, input.inputTraceId, {
-        stage: input.stage,
-        timestamp,
-        outcome: input.outcome,
-        ...(input.reason === undefined ? {} : { reason: input.reason }),
-      })
-      const classifiedResult = classifyInputFailure(input)
-      if (input.result !== undefined && input.result !== classifiedResult) fail('INVALID_ARGS', 'browser input trace result does not match the reported stage and outcome')
-      if (classifiedResult !== undefined) this.inputTraces.finish(session.key, input.inputTraceId, { timestamp, result: classifiedResult, reason: input.reason })
-      return { ok: true, action: 'input_trace', viewId: input.viewId, data: asData({ recorded: true, inputTraceId: trace.inputTraceId, stage: input.stage, result: classifiedResult ?? null }) }
-    })
-  }
-
-  async panelInput(sessionId: string, input: BrowserUserInput): Promise<ToolOutput> {
-    const session = this.sessionById(sessionId)
-    if (session === undefined) return { ok: false, action: 'user_input', data: asData({ code: 'BROWSER_SESSION_NOT_READY', recoverable: true, message: 'browser session is not ready' }) }
-    return this.queueSession(session, async () => {
-      const startedAt = Date.now()
-      const recorder = this.recorder.status(session.sessionId, session.key)
-      const tracing = recorder.mode !== 'off' && recorder.status === 'recording'
-      const inputTraceId = input.inputTraceId?.trim() || `host-legacy-${this.nextLegacyInputTrace++}`
-      const clientRawObserved = typeof input.clientRawAt === 'number' && Number.isFinite(input.clientRawAt)
-      const clientNormalizedObserved = typeof input.clientNormalizedAt === 'number' && Number.isFinite(input.clientNormalizedAt)
-      // Client时间只用于标记输入管线阶段，不得越过Host实际接收时刻；Normalized也不能早于Raw，否则跨线程排队或异常调用会生成逆序证据。
-      const clientRawAt = clientRawObserved ? Math.min(input.clientRawAt as number, startedAt) : startedAt
-      const clientNormalizedAt = clientNormalizedObserved ? Math.min(Math.max(input.clientNormalizedAt as number, clientRawAt), startedAt) : startedAt
-      const beforeView = session.views.get(input.viewId)
-      const before = beforeView === undefined ? undefined : {
-        viewId: beforeView.viewId,
-        documentGeneration: beforeView.documentGeneration,
-        navigationId: beforeView.navigationId,
-      }
-      const text = input.action === 'insert_text' || input.action === 'composition_commit'
-        ? input.text
-        : input.action === 'paste'
-          ? `${input.text ?? ''}${input.html ?? ''}${input.uriList ?? ''}`
-          : input.action === 'key_press' && [...input.key].length === 1
-            ? input.key
-            : ''
-      let observation: Awaited<ReturnType<BrowserRuntimePanelActions['beginInputObservation']>> | undefined
-      if (tracing && beforeView !== undefined) {
-        observation = await this.beginInputObservation(beforeView, inputTraceId)
-        const trace = this.inputTraces.ensure({
-          inputTraceId,
-          sessionKey: session.key,
-          viewId: input.viewId,
-          action: this.inputTraceAction(input),
-          sensitivity: observation.sensitivity,
-          ...(text === '' ? {} : { characters: summarizeInputCharacters(text) }),
-          composing: input.composing ?? false,
-          timestamp: clientRawAt,
-        })
-        this.inputTraces.stage(session.key, inputTraceId, {
-          stage: 'client-raw',
-          timestamp: clientRawAt,
-          outcome: clientRawObserved ? 'observed' : 'unknown',
-          ...(clientRawObserved ? {} : { reason: 'legacy-client-stage-unavailable' }),
-        })
-        this.inputTraces.stage(session.key, inputTraceId, {
-          stage: 'client-normalized',
-          timestamp: clientNormalizedAt,
-          outcome: clientNormalizedObserved ? 'observed' : 'unknown',
-          ...(clientNormalizedObserved ? {} : { reason: 'legacy-client-stage-unavailable' }),
-        })
-        this.inputTraces.stage(session.key, inputTraceId, { stage: 'rpc-received', timestamp: startedAt, outcome: 'delivered' })
-        this.inputTraces.stage(session.key, inputTraceId, { stage: 'host-dispatched', timestamp: Date.now(), outcome: 'delivered' })
-        void trace
-      }
-      let result: ToolOutput
-      let inputResult: InputTraceRecord['result'] = 'unknown'
-      let finalObservation: Awaited<ReturnType<BrowserRuntimePanelActions['finishInputObservation']>> | undefined
-      try {
-        result = await this.userInputAction(session, input)
-        inputResult = result.ok ? 'delivered' : 'transport-lost'
-      } catch (error) {
-        inputResult = 'transport-lost'
-        throw error
-      } finally {
-        if (tracing && beforeView !== undefined && observation !== undefined) {
-          finalObservation = await this.finishInputObservation(beforeView, inputTraceId).catch(() => undefined)
-          if (finalObservation !== undefined) {
-            this.inputTraces.stage(session.key, inputTraceId, {
-              stage: 'dom-observed',
-              timestamp: Date.now(),
-              outcome: finalObservation.observed ? 'observed' : 'unknown',
-              ...(finalObservation.observed ? {} : { reason: 'no-dom-input-event-observed' }),
-            })
-            if (finalObservation.targetReplaced) inputResult = 'target-replaced'
-            else if (finalObservation.composing) inputResult = 'composition-not-committed'
-            else if (finalObservation.focusLost && (input.action === 'insert_text' || input.action === 'composition_commit' || input.action === 'paste' || input.action === 'key_press')) inputResult = 'focus-lost'
-            else if (finalObservation.prevented) inputResult = 'prevented-by-page'
-            else if (finalObservation.beforeInputObserved && finalObservation.finalLength === finalObservation.initialLength) inputResult = 'dropped-after-beforeinput'
-            else if (!finalObservation.observed) inputResult = 'dropped-before-dom-event'
-          }
-          this.inputTraces.finish(session.key, inputTraceId, { timestamp: Date.now(), result: inputResult, targetReplaced: finalObservation?.targetReplaced })
-        }
-      }
-      if ((input.action === 'composition_commit' || input.action === 'insert_text') && finalObservation !== undefined) {
-        // 面板输入处于用户独占期，不能再调用模型Evaluate 读取页面。这里返回的观察摘要只包含
-        // 事件类别、布尔状态与长度，用于验证真实Composition 及组合后普通输入链；绝不包含正文。
-        result = {
-          ...result,
-          data: asData({
-            action: input.action,
-            observation: finalObservation,
-          }),
-        }
-      }
-      const after = session.views.get(result.viewId ?? input.viewId)
-      if (after !== undefined) {
-        const contextIdentity = after.cdp?.contextAdapter?.isEnabled() ? after.cdp.contextAdapter.mainContext() : {}
-        const action = this.journal.recordAction({
-          sessionId: session.sessionId,
-          sessionKey: session.key,
-          viewId: after.viewId,
-          contextGeneration: session.contextGeneration,
-          documentGeneration: after.documentGeneration,
-          navigationId: after.navigationId,
-          ...contextIdentity,
-          callId: `panel-${startedAt}`,
-          rootCallId: `panel-${startedAt}`,
-          toolName: `browser_panel_${input.action}`,
-          humanInitiated: true,
-          startedAt,
-          finishedAt: Date.now(),
-          outcome: result.ok ? 'ok' : 'failed',
-          ...(before === undefined ? {} : { beforeViewId: before.viewId, beforeDocumentGeneration: before.documentGeneration, beforeNavigationId: before.navigationId }),
-          afterViewId: after.viewId,
-          afterDocumentGeneration: after.documentGeneration,
-          afterNavigationId: after.navigationId,
-        })
-        if (tracing) {
-          const trace = this.inputTraces.get(session.key, inputTraceId)
-          this.recorder.record(session.sessionId, session.key, {
-            source: 'user',
-            kind: `input-${input.action.replaceAll('_', '-')}`,
-            viewId: after.viewId,
-            documentGeneration: after.documentGeneration,
-            navigationId: after.navigationId,
-            ...contextIdentity,
-            actionId: action.actionId,
-            inputTraceId,
-            outcome: inputResult,
-            ...(trace === undefined ? {} : {
-              input: {
-                sensitivity: trace.sensitivity,
-                ...(trace.characters === undefined ? {} : { characters: trace.characters }),
-                composing: trace.composing,
-                ...(trace.result === undefined ? {} : { result: trace.result }),
-              },
-            }),
-            ...(finalObservation === undefined ? {} : {
-              metrics: {
-                initialLength: finalObservation.initialLength,
-                finalLength: finalObservation.finalLength,
-                targetReplaced: finalObservation.targetReplaced,
-                focusLost: finalObservation.focusLost,
-              },
-            }),
-          })
-        }
-      }
-      return result
-    })
-  }
-
   async panelLiveView(sessionId: string, input: BrowserLiveViewInput): Promise<ToolOutput> {
     const session = this.sessionById(sessionId)
     if (session === undefined) return { ok: false, action: 'live_view', data: asData({ code: 'BROWSER_SESSION_NOT_READY', recoverable: true, message: 'browser session is not ready' }) }
@@ -417,14 +227,14 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
         tabs: [],
         console: [],
         network: [],
-        capabilities: { provider: 'disconnected', debugger: false, networkInterception: false, tracing: false, cpuProfile: false, coverage: false, heap: false, emulation: false, evaluate: false, screencast: false, takeover: false },
+        capabilities: { provider: 'disconnected', debugger: false, networkInterception: false, tracing: false, cpuProfile: false, coverage: false, heap: false, emulation: false, evaluate: false, screencast: false },
         message: '浏览器尚未启动：直接调用浏览器工具会自动启动本 Session 独立的浏览器，也可以在这里手动启动或连接现有 Chrome。',
       }
     }
     const current = session.views.get(session.activeViewId) ?? [...session.views.values()].find(item => item.kind === 'page' && !item.page.isClosed())
     if (current === undefined) {
       const extensionState = view === 'extensions' ? await this.extensionState(session) : undefined
-      return { available: true, sessionId, tabs: [], console: [], network: [], ...(extensionState === undefined ? {} : extensionState), capabilities: { provider: session.provider, debugger: true, networkInterception: true, tracing: true, cpuProfile: true, coverage: true, heap: true, emulation: true, evaluate: true, screencast: true, takeover: true }, control: session.control, message: 'no browser tab is currently available'}
+      return { available: true, sessionId, tabs: [], console: [], network: [], ...(extensionState === undefined ? {} : extensionState), capabilities: { provider: session.provider, debugger: true, networkInterception: true, tracing: true, cpuProfile: true, coverage: true, heap: true, emulation: true, evaluate: true, screencast: true }, control: session.control, message: 'no browser tab is currently available'}
     }
     session.activeViewId = current.viewId
     if (view === 'live') session.liveView.open = true
@@ -513,7 +323,6 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
         emulation: true,
         evaluate: true,
         screencast: true,
-        takeover: true,
       },
       control: session.control,
       diagnostic: this.panelDiagnosticSnapshot(session, current),
@@ -551,8 +360,6 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
     if (session === undefined) return
     await this.queueSession(session, async () => {
       session.liveView.open = false
-      const current = session.views.get(session.activeViewId)
-      if (current !== undefined) this.finishPanelTakeover(session, current)
       session.control.owner = 'model'
       session.control.pending = false
       session.control.changedAt = Date.now()
@@ -615,8 +422,6 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
 
       const recorder = this.recorder.status(session.sessionId, session.key)
       if (recorder.mode !== 'off' && recorder.status === 'recording') this.recorder.pause(session.key)
-      const current = session.views.get(session.activeViewId)
-      if (current !== undefined) this.finishPanelTakeover(session, current)
       session.control.owner = 'model'
       session.control.pending = false
       session.control.changedAt = Date.now()
@@ -633,8 +438,6 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
       session.diagnosticPanel.latestInspect = undefined
       session.diagnosticPanel.latestComparison = undefined
       session.diagnosticPanel.latestIncident = undefined
-      session.diagnosticPanel.takeover = undefined
-      session.diagnosticPanel.latestTakeoverSummary = undefined
     })
   }
 

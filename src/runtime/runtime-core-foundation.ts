@@ -12,7 +12,7 @@ import { sessionContext } from '../provider/provider.ts'
 import { releaseHandles, releaseViewRefs } from '../view/view-refs.ts'
 import { createViewState } from '../view/view-state.ts'
 import { splitPaneForView, splitPaneView } from '../view/view-layout.ts'
-import { debuggerPauseResponse, resolveRef, resolveView, resolveViewByInput, staleReferenceResponse, userTakeoverResponse } from '../view/view-access.ts'
+import { debuggerPauseResponse, resolveRef, resolveView, resolveViewByInput, staleReferenceResponse } from '../view/view-access.ts'
 import { bindPageDiagnosticEvents } from '../page/page-diagnostics.ts'
 import { bindPageNetworkEvents } from '../page/page-network-events.ts'
 import { recordPageRequest } from '../page/page-network-recording.ts'
@@ -189,8 +189,8 @@ export abstract class BrowserRuntimeFoundation {
     return debuggerPauseResponse(view, action)
   }
 
-  protected modelWriteBlocked(session: SessionState, view: ViewState, action: string): ToolOutput | undefined {
-    return userTakeoverResponse(session, view, action)
+  protected modelWriteBlocked(_session: SessionState, _view: ViewState, _action: string): ToolOutput | undefined {
+    return undefined
   }
 
   protected stale(view: ViewState, action: string): ToolOutput {
@@ -340,8 +340,6 @@ export abstract class BrowserRuntimeFoundation {
     session.diagnosticPanel.latestInspect = undefined
     session.diagnosticPanel.latestComparison = undefined
     session.diagnosticPanel.latestIncident = undefined
-    session.diagnosticPanel.takeover = undefined
-    session.diagnosticPanel.latestTakeoverSummary = undefined
     session.contextGeneration += 1
     const context = session.providerBinding.kind === 'disconnected'
       ? undefined

@@ -14,7 +14,6 @@ import type {
   BrowserProfileInput,
   BrowserProviderInput,
   BrowserSplitViewInput,
-  BrowserTakeoverInput,
 } from '../domain/protocol.ts'
 import {
   debuggerActions,
@@ -29,7 +28,6 @@ import {
   providerActions,
   providerChoices,
   render as renderOutput,
-  takeoverActions,
   verificationGuidance,
 } from './tool-metadata.ts'
 import type { BrowserRuntime } from '../runtime/runtime.ts'
@@ -382,16 +380,6 @@ export function defineBrowserTools(runtime: BrowserRuntime): ToolDefinition[] {
       action: { type: 'string', enum: extensionChoices, required: true },
     },
     execute: (args, exec) => runtime.extensions(identity(exec), exec.signal, args as unknown as BrowserExtensionInput),
-  })
-
-  tool(definitions, {
-    name: 'browser_takeover',
-    description: `Read or change exclusive browser control ownership. The human UI keeps takeover inside a collapsed floating panel; agents must call browser_takeover directly and must not search for or click that UI. While the user owns control, model write operations return USER_TAKEOVER_ACTIVE and read-only observation remains available. Request or preserve human control for every security verification challenge. ${verificationGuidance}`,
-    parameters: {
-      action: { type: 'string', enum: takeoverActions, required: true },
-      viewId: { type: 'string' },
-    },
-    execute: (args, exec) => runtime.takeover(identity(exec), exec.signal, args as unknown as BrowserTakeoverInput),
   })
 
   return definitions

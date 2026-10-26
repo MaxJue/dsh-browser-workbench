@@ -4,7 +4,7 @@ import { abortReason, fail, requireActive } from '../domain/errors.ts'
 import { assertUploadPath, assertUrlAllowed } from '../domain/policy.ts'
 import type { ElementHandle } from 'playwright-core'
 import type { Identity, RefState, ToolOutput } from '../domain/types.ts'
-import type { BrowserDebuggerInput, BrowserDiagnoseInput, BrowserEmulateInput, BrowserEvaluateInput, BrowserExtensionInput, BrowserLiveViewInput, BrowserNetworkInput, BrowserProfileInput, BrowserProviderInput, BrowserSplitViewInput, BrowserTakeoverInput } from '../domain/protocol.ts'
+import type { BrowserDebuggerInput, BrowserDiagnoseInput, BrowserEmulateInput, BrowserEvaluateInput, BrowserExtensionInput, BrowserLiveViewInput, BrowserNetworkInput, BrowserProfileInput, BrowserProviderInput, BrowserSplitViewInput } from '../domain/protocol.ts'
 import { awaitBackNavigation, stopOnAbort } from '../page/page-operation.ts'
 import type { EvidenceContextIdentity } from '../diagnostics/context-identity.ts'
 import { BrowserRuntimeCore } from './runtime-core.ts'
@@ -516,10 +516,6 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
       if (blocked !== undefined) return blocked
       return this.evaluateAction(session, input)
     })
-  }
-
-  async takeover(identity: Identity, signal: AbortSignal, input: BrowserTakeoverInput): Promise<ToolOutput> {
-    return this.withSession(identity, signal, session => this.takeoverAction(session, input), { autoLaunch: input.action !== 'status' })
   }
 }
 

@@ -461,13 +461,6 @@ await step('browser_split_view', 'close', { action: 'close' }, () => runtime.spl
 // --------------------------------------------------------------- extensions
 await step('browser_extensions', 'list', { action: 'list' }, () => runtime.extensions(identity, signal, { action: 'list' }))
 
-// ----------------------------------------------------------------- takeover
-await step('browser_takeover', 'status', { action: 'status' }, () => runtime.takeover(identity, signal, { action: 'status' }))
-await step('browser_takeover', 'request', { action: 'request' }, () => runtime.takeover(identity, signal, { action: 'request' }))
-await step('browser_takeover', 'write blocked while user owns control', { ref: 'e1' }, () => runtime.elementAction(identity, signal, { action: 'click', ref: 'e1' }), undefined, { allowFailure: true })
-await step('browser_takeover', 'return', { action: 'return' }, () => runtime.takeover(identity, signal, { action: 'return' }))
-await step('browser_takeover', 'cancel', { action: 'cancel' }, () => runtime.takeover(identity, signal, { action: 'cancel' }))
-
 // ---------------------------------------------------------------- teardown
 await step('browser_provider', 'disconnect', { action: 'disconnect' }, () => runtime.provider(identity, signal, { action: 'disconnect' }))
 await step('browser_provider', 'list after disconnect', { action: 'list' }, () => runtime.provider(identity, signal, { action: 'list' }))

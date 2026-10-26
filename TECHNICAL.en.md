@@ -104,7 +104,7 @@ BrowserWorkbench supports three registration modes and uses `global` by default:
     toolRegistrationMode: global
 ```
 
-Registers all 30 tools into DSH globally. If pre-existing `browser_*` tools are detected at bootstrap, BrowserWorkbench automatically degrades to `session-select` to prevent cordis registration conflicts.
+Registers all 29 tools into DSH globally. If pre-existing `browser_*` tools are detected at bootstrap, BrowserWorkbench automatically degrades to `session-select` to prevent cordis registration conflicts.
 
 ### 2. Session-Select Mode (`session-select`, Optional)
 
@@ -116,7 +116,7 @@ Registers all 30 tools into DSH globally. If pre-existing `browser_*` tools are 
 
 - **Concealed State**: Prior to an explicit choice, browser tools are concealed from the Agent to prevent premature invocation. The settings page only writes a global binding and offers no per-session selection, so this mode is entered through RPC (`controller_activate` / `controller_select_other`) or by editing the Profile patch.
 - **Provider Choice**: `controller_activate` selects DSH BrowserWorkbench; `controller_select_other` selects a pre-existing third-party browser tool in the current Profile.
-- **Exclusive Locking**: When BrowserWorkbench is selected, all 30 tools are bound to the current Agent Scope; identical tool names from third parties are shadowed, and exclusive third-party browser tools are hidden for that Session only. Selecting third-party tools leaves BrowserWorkbench dormant without creating browser resources.
+- **Exclusive Locking**: When BrowserWorkbench is selected, all 29 tools are bound to the current Agent Scope; identical tool names from third parties are shadowed, and exclusive third-party browser tools are hidden for that Session only. Selecting third-party tools leaves BrowserWorkbench dormant without creating browser resources.
 - **Persistence Across Restarts**: Selection choices are persisted in schema v2 records (`$DSH_HOME/browser-tools/controller/sessions/`). Sibling sessions remain independent, and choices resume cleanly after DSH restarts or Agent Scope replacements.
 - **Session Locking Rule**: Plugin choice cannot be switched mid-session to prevent cross-plugin reference pollution. Switching tools requires opening a new Session.
 - **Release Preserves Choice**: Releasing BrowserWorkbench via `controller_release` disconnects CDP and clears page views without unbinding the tool selection. Re-invoking tools simply prompts reconnecting the Provider.
@@ -164,8 +164,7 @@ Controller RPC endpoints (mounted under authenticated route `/api/browser-tools`
   - Network request interception journal, paused requests, and mock rules.
   - ARIA element references (refs), snapshot diffs, and screencast frame streams.
   - Forensic Checkpoints, Flight Recorder logs, and disk artifacts.
-  - Human takeover locks and ownership state.
-- **Safe Teardown**: Calling `browser_provider disconnect` drops the CDP protocol transport without closing or killing the user's browser.
+  - **Safe Teardown**: Calling `browser_provider disconnect` drops the CDP protocol transport without closing or killing the user's browser.
 
 ## Security & Isolation Invariants
 
@@ -174,9 +173,8 @@ Controller RPC endpoints (mounted under authenticated route `/api/browser-tools`
 3. **Directory Traversal Protection**: Uploads and downloads are bound to explicit directories (`uploadRoots` and `artifactRoot`). Path escaping and symlink traversal are rejected.
 4. **Credential Redaction**: Debugger scopes, network logs, and console entries automatically redact sensitive headers, cookies, tokens, and passwords.
 5. **Approval Policies**: `browser_evaluate` is always classified as a sensitive operation requiring approval. When `subagentInteractive=false`, subagents are barred from interactive write actions.
-6. **Clipboard Protection**: Takeover paste handling only receives the final PasteEvent without reading or storing host system clipboard history.
-7. **Human Challenge Safety**: CAPTCHA, SMS/email verification codes, Passkey/WebAuthn, and device confirmation prompts require immediate automated cessation and human takeover.
-8. **Viewport Generation Safety**: Adaptive live view uses host initialization states, serial size reports, and viewport generations to reject stale dimensions from overriding stable viewports.
+6. **Human Challenge Safety**: CAPTCHA, SMS/email verification codes, Passkey/WebAuthn, and device confirmation prompts require immediate automated cessation and user notification.
+7. **Viewport Generation Safety**: Adaptive live view uses host initialization states, serial size reports, and viewport generations to reject stale dimensions from overriding stable viewports.
 
 ## Internal Identifiers
 
@@ -190,7 +188,7 @@ LocalStorage prefix: dsh-browser-tools.*
 Cordis plugin id: browser-tools
 ```
 
-## 30 Agent Tools
+## 29 Agent Tools
 
 ### 1. Navigation & Page Operations (14 tools)
 
@@ -233,20 +231,19 @@ Cordis plugin id: browser-tools
 | `browser_evaluate` | `action`: isolated/main_world/paused_frame, `expression`, `awaitPromise` | Safely evaluate JavaScript in an isolated world, main world, or paused stack frame. |
 | `browser_provider` | `action`: list/connect/disconnect/capabilities, `provider`: managed/external-cdp, `endpoint` | `managed` launches this session's dedicated browser; `external-cdp` attaches to an existing Chrome/Edge debugging endpoint |
 
-### 4. Workbench & Control Ownership (4 tools)
+### 4. Workbench & Display (3 tools)
 
 | Tool | Core Parameters | Description |
 | --- | --- | --- |
 | `browser_live_view` | `action`: status/standard/adaptive | Query or switch live display modes (standard 1280x720 or adaptive reflow). |
 | `browser_split_view` | `action`: status/open/close/swap/assign/focus/ratio/orientation | Control two-page split view orientation, pane assignment, and ratio. |
 | `browser_extensions` | `action`: list | Read-only endpoint for inspecting historical extension registry entries. |
-| `browser_takeover` | `action`: status/request/return/cancel | Manage exclusive human control; while active, Agent write actions return `USER_TAKEOVER_ACTIVE`. |
 
 ## Live-Only Panel
 
-The client panel is now a single view: `src/client/components/panel/BrowserPanel.tsx` renders exactly three parts — `TabBar` (tabs), `NavigationBar` (address bar plus back/forward/refresh), and `LiveView` (screencast, human takeover, split view, drag-to-share, close panel). On activation it always calls `controller.update(sessionId, tab.id, 'live')`; there is no view routing any more.
+The client panel is now a single view: `src/client/components/panel/BrowserPanel.tsx` renders exactly three parts — `TabBar` (tabs), `NavigationBar` (address bar plus back/forward/refresh), and `LiveView` (screencast, split view, drag-to-share, close panel). On activation it always calls `controller.update(sessionId, tab.id, 'live')`; there is no view routing any more.
 
-- **Screencast**: live frame stream plus in-panel mouse/keyboard takeover; the `standard`/`adaptive` modes of `browser_live_view` are unchanged.
+- **Screencast**: live frame stream; the `standard`/`adaptive` modes of `browser_live_view` are unchanged.
 - **Split view**: the open/close/swap/assign/focus/ratio/orientation semantics of `browser_split_view` are unchanged.
 - **Diagnostics and performance**: the panel's "Open diagnostics" button and the Recorder (Rolling/Deep/stop/mark) controls were removed, while the `browser_diagnose` and `browser_profile` Agent tools keep their full capability; on the client only `views/live/DiagnosticOverlay.tsx` (used by `LivePane`) remains for on-site hints.
 - **Panel lifecycle**: the tab bar and right-sidebar tab lifecycle are still governed by DSH native Tab mechanisms with strict per-session isolation.

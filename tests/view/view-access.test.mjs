@@ -6,7 +6,6 @@ import {
   resolveView,
   resolveViewByInput,
   staleReferenceResponse,
-  userTakeoverResponse,
 } from '../../src/view/view-access.ts'
 
 function makeView(viewId, { kind = 'page', closed = false, paused = false } = {}) {
@@ -60,9 +59,8 @@ test('rejects missing and closed views', () => {
   assert.throws(() => resolveView(session), /browser view "closed" does not exist/)
 })
 
-test('returns debugger and takeover blockers with actionable next steps', () => {
+test('returns debugger pause blocker with actionable next steps', () => {
   const view = makeView('tab-1', { paused: true })
-  const session = makeSession([view], 'tab-1', 'user')
 
   assert.deepEqual(debuggerPauseResponse(view, 'click'), {
     ok: false,
@@ -76,10 +74,6 @@ test('returns debugger and takeover blockers with actionable next steps', () => 
     },
   })
   assert.equal(debuggerPauseResponse(makeView('ready'), 'click'), undefined)
-  assert.equal(userTakeoverResponse(makeSession([view]), view, 'click'), undefined)
-  assert.deepEqual(userTakeoverResponse(session, view, 'click').data.next, {
-    tool: 'browser_takeover', arguments: { action: 'status', viewId: 'tab-1' },
-  })
 })
 
 test('stale references request a fresh snapshot diff', () => {

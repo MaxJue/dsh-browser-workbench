@@ -100,7 +100,7 @@ export function apply(ctx: BrowserClientContext): void {
             id: 'live',
             order: 20,
             title: () => '浏览器实况',
-            description: () => '查看并接管 Agent 正在操作的浏览器',
+            description: () => '查看 Agent 正在操作的浏览器',
             icon: BrowserGlyph,
           },
         ],

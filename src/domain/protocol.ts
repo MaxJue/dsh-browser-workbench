@@ -41,7 +41,6 @@ export type BrowserEvaluateAction = 'isolated' | 'main_world' | 'paused_frame'
 export type BrowserProviderAction = 'list' | 'connect' | 'disconnect' | 'capabilities'
 export type BrowserExtensionAction = 'list' | 'install' | 'enable' | 'disable' | 'uninstall' | 'apply' | 'open_popup' | 'close_popup'
 export type BrowserExtensionApplyMode = 'next_start' | 'now'
-export type BrowserTakeoverAction = 'status' | 'request' | 'return' | 'cancel'
 export type BrowserLiveViewMode = 'standard' | 'adaptive'
 export type BrowserLiveViewAction = 'status' | 'standard' | 'adaptive' | 'initialize' | 'resize'
 export type BrowserSplitViewPane = 'top' | 'bottom'
@@ -106,7 +105,6 @@ export interface BrowserCapabilityState {
   emulation: boolean
   evaluate: boolean
   screencast: boolean
-  takeover: boolean
 }
 
 export interface BrowserExtensionSummary {
@@ -286,19 +284,6 @@ export interface BrowserDiagnosticPanelSnapshot {
     crossContextLinkCount?: number
     l3Verdict?: 'stable' | 'changed' | 'incomparable'
   }
-  takeover?: {
-    active: boolean
-    startedAt?: number
-    latestSummary?: {
-      startedAt: number
-      finishedAt: number
-      actionCount: number
-      documentChanged: boolean
-      navigationChanged: boolean
-      newConsoleErrors: number
-      newFailedRequests: number
-    }
-  }
 }
 
 export interface BrowserSplitViewState {
@@ -447,59 +432,6 @@ export interface BrowserExtensionInput {
   extensionId?: string
   applyMode?: BrowserExtensionApplyMode
 }
-
-export interface BrowserTakeoverInput {
-  action: BrowserTakeoverAction
-  viewId?: string
-}
-
-interface BrowserInputTraceEnvelope {
-  inputTraceId?: string
-  clientRawAt?: number
-  clientNormalizedAt?: number
-  composing?: boolean
-}
-
-export type BrowserInputFailureResult =
-  | 'dropped-at-client-normalization'
-  | 'dropped-at-rpc'
-  | 'dropped-at-host-bridge'
-  | 'dropped-before-dom-event'
-  | 'dropped-after-beforeinput'
-
-export interface BrowserInputTraceUpdate {
-  inputTraceId: string
-  viewId: string
-  action: 'key-press' | 'insert-text' | 'paste' | 'composition' | 'pointer' | 'wheel'
-  sensitivity: 'normal' | 'potentially-sensitive' | 'sensitive' | 'security-challenge'
-  composing: boolean
-  characters?: {
-    length: number
-    asciiLetters: number
-    digits: number
-    whitespace: number
-    punctuation: number
-    cjk: number
-    other: number
-  }
-  stage: 'client-raw' | 'client-normalized' | 'rpc-received' | 'host-dispatched' | 'dom-observed' | 'final-state'
-  timestamp: number
-  outcome: 'observed' | 'delivered' | 'prevented' | 'lost' | 'unknown'
-  reason?: string
-  result?: BrowserInputFailureResult | 'delivered' | 'composition-not-committed' | 'focus-lost' | 'target-replaced' | 'prevented-by-page' | 'transport-lost' | 'unknown'
-}
-
-export type BrowserUserInput = BrowserInputTraceEnvelope & (
-  | { action: 'mouse_click'; viewId: string; streamGeneration: number; frameSequence: number; viewportGeneration: number; x: number; y: number; button?: 'left' | 'middle' | 'right'; clickCount?: number }
-  | { action: 'mouse_down'; viewId: string; streamGeneration: number; frameSequence: number; viewportGeneration: number; x: number; y: number; button?: 'left' | 'middle' | 'right'; clickCount?: number }
-  | { action: 'mouse_move'; viewId: string; streamGeneration: number; frameSequence: number; viewportGeneration: number; x: number; y: number }
-  | { action: 'mouse_up'; viewId: string; streamGeneration: number; frameSequence: number; viewportGeneration: number; x: number; y: number }
-  | { action: 'mouse_wheel'; viewId: string; streamGeneration: number; frameSequence: number; viewportGeneration: number; x: number; y: number; deltaX: number; deltaY: number }
-  | { action: 'key_press'; viewId: string; streamGeneration: number; frameSequence: number; viewportGeneration: number; key: string; modifiers?: Array<'Control' | 'Alt' | 'Shift' | 'Meta'> }
-  | { action: 'insert_text'; viewId: string; streamGeneration: number; frameSequence: number; viewportGeneration: number; text: string }
-  | { action: 'composition_commit'; viewId: string; streamGeneration: number; frameSequence: number; viewportGeneration: number; text: string }
-  | { action: 'paste'; viewId: string; streamGeneration: number; frameSequence: number; viewportGeneration: number; text?: string; html?: string; uriList?: string; files?: Array<{ name: string; mediaType: string; data: string }> }
-)
 
 export type BrowserDebuggerAction =
   | 'attach'

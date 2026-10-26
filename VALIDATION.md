@@ -6,7 +6,7 @@
 
 > 2026-10 更新：默认注册模式已改为 `global`，并新增 `providerMode: auto`（Session 首次调用浏览器工具时自动启动该 Session 独立的持久化 Chromium）。下文中「托管启动不在工具面暴露」「Provider 只接受 external-cdp」「不启动后台浏览器」等边界仅描述当次验证时的代码状态，已不适用于当前代码。
 
-> 2026-10-26 更新：客户端面板已收敛为单一实况视图，composer 绑定控件删除，新增设置页三态绑定、`disabled` 模式、`externalCdpEndpoint` 与外部 CDP 自动连接，单测增至 178。第十四、十五节中涉及「9 视图」「控制器菜单」「composer 控件」的结论已失效，逐项标注见第十六节。
+> 2026-10-26 更新：客户端面板已收敛为单一实况视图，剥离人工接管（Takeover）机制，保留纯观察实况；composer 绑定控件删除，新增设置页三态绑定、`disabled` 模式、`externalCdpEndpoint` 与外部 CDP 自动连接，工具收敛至 29 个，单测为 171 项全绿。第十四、十五节中涉及「9 视图」「控制器菜单」「composer 控件」「人工接管」的结论已失效，逐项标注见第十六节。
 
 候选状态以外部候选身份文件和 tarball 摘要为准。本文描述测试结果，不能单独证明某个版本已经完成 Git Tag、GitHub Release 或 npm 发布。
 
@@ -16,8 +16,8 @@
 package: dsh-browser-workbench
 version: 1.0.0-rc8
 DSH compatibility target: 0.2.1-rc.2 / 0.2.1-rc.3
-0.2.1-rc.2 validation: peer dependency check, strict typecheck, production build, Session Controller integration, 30-tool Chromium regression
-full browser runtime validation: 30-tool regression passed; fresh DSH Web Profile lifecycle and UI acceptance pending
+0.2.1-rc.2 validation: peer dependency check, strict typecheck, production build, Session Controller integration, 29-tool Chromium regression
+full browser runtime validation: 29-tool regression passed; fresh DSH Web Profile lifecycle and UI acceptance pending
 Node.js: 22.x
 package manager: pnpm 11.x
 ```
@@ -26,13 +26,13 @@ RC8 的直接 DSH peers 声明为范围 `^0.2.1-rc.2 || ^0.2.1-rc.3`，Cordis �
 
 DSH `0.2.1-rc.2` 更新了 Connection Peer 模型和传递 peer 依赖。BrowserWorkbench 继续注册 Connection 的认证精确 Fetch Route，认证、Host/Origin、请求体限制和取消由 Connection 提供。`dsh-tools` 新增 `dsh-working-directory` peer，后者依赖 `dsh-fs`；二者已加入开发验证依赖图。已移除停止发布的 `dsh-invariants`。
 
-在 DSH `0.2.1-rc.2` 下，严格类型检查、Host/Client 正式构建、`pnpm peers check`、build-registry 检查、真实 App Boot Session Controller 集成和固定 Chromium `149.0.7827.55` 的 30 工具完整集成均通过。完整集成覆盖面板、分屏、持久化 Profile、扩展、Debugger、诊断取证、Network、性能产物、外部 CDP 和清理路径；所有断言通过，临时运行时、监听端口和外部 CDP 均完成清理。全新 DSH Web Profile 安装/启动/认证/卸载及 DSH Web UI 人工验收仍待完成。此前 `0.1.x` 验证不代表兼容 `0.2.x`，不沿用旧版验证结论。
+在 DSH `0.2.1-rc.2` 下，严格类型检查、Host/Client 正式构建、`pnpm peers check`、build-registry 检查、真实 App Boot Session Controller 集成和固定 Chromium `149.0.7827.55` 的 29 工具完整集成均通过。完整集成覆盖面板、分屏、持久化 Profile、扩展、Debugger、诊断取证、Network、性能产物、外部 CDP 和清理路径；所有断言通过，临时运行时、监听端口和外部 CDP 均完成清理。全新 DSH Web Profile 安装/启动/认证/卸载及 DSH Web UI 人工验收仍待完成。此前 `0.1.x` 验证不代表兼容 `0.2.x`，不沿用旧版验证结论。
 
 本报告不自动承诺后续 DSH RC、正式版、其他操作系统或所有第三方浏览器插件兼容。
 
-## 一、30 个浏览器工具集成
+## 一、29 个浏览器工具集成
 
-**测试目的**：确认 30 个 Agent 浏览器工具在真实 Chromium 中可以端到端工作，不是只通过类型检查和单元桩。
+**测试目的**：确认 29 个 Agent 浏览器工具在真实 Chromium 中可以端到端工作，不是只通过类型检查和单元桩。
 
 **测试内容**：标签与导航、页面观察、页面交互、文件链路、Console、Network、Debugger、Source Map、性能、环境模拟、Provider、扩展、人工协作和诊断取证。
 
@@ -54,7 +54,7 @@ DSH `0.2.1-rc.2` 更新了 Connection Peer 模型和传递 peer 依赖。Browser
 | 环境 | Viewport、设备、Locale、Timezone、网络、CPU、离线、权限 |
 | Provider | Managed、Persistent、External CDP、能力协商与断开 |
 | 扩展 | Manifest V3、安装状态、启停、应用、真实 Popup |
-| 人工协作 | Live View、Takeover、鼠标、键盘、输入法、PasteEvent、控制权归还 |
+| 界面实况 | Live View、自适应 Viewport、双页分屏 |
 | 诊断证据 | Recorder、Checkpoint、Compare、Incident、Context/Build/Application Identity |
 
 集成测试最终输出：
@@ -123,7 +123,7 @@ profile: pass
 **测试结果**：
 
 ```text
-当前 Session 启用 BrowserWorkbench 后：30 个 BrowserWorkbench 工具可见
+当前 Session 启用 BrowserWorkbench 后：29 个 BrowserWorkbench 工具可见
 同名工具：由 BrowserWorkbench 在当前 Agent Scope 遮蔽
 对照插件独有浏览器工具：只在当前 Agent Scope 受限
 兄弟 Session：不受影响
@@ -201,7 +201,7 @@ runtimeRemoved: true
 - Page、View、标签与 Popup；
 - 活动标签和上下双页焦点；
 - Debugger、Network、Ref、Snapshot 和 Screencast；
-- Artifact 与人工接管；
+- Artifact 制品状态；
 - Controller 状态与 generation。
 
 网页 `window.open()` 会继承正确 Owner。无法确认 Owner 的新页面不会暴露给任意 Session。销毁一个 Session 不会关闭其他 Session 的页面。扩展立即生效触发全局协调重建时，各 Session 的 URL、活动标签和双页布局会按记录恢复。
@@ -228,11 +228,11 @@ runtimeRemoved: true
 
 以上项目全部符合预期。
 
-## 六、输入、实况与人工接管
+## 六、界面实况与自适应
 
 **测试目的**：确认实况画面和人工输入在真实浏览器中可用，且控制权归属清晰。
 
-**测试内容**：标准实况尺寸、自适应 Viewport、双页画面流、帧预算、输入坐标系一致性、代际变化后的旧输入拒绝、鼠标与键盘输入、中文输入法、剪贴板 PasteEvent 和 Takeover 权限边界。
+**测试内容**：标准实况尺寸、自适应 Viewport、双页画面流、帧预算与分屏展示。
 
 **测试过程**：在实况画面中执行人工输入，并在 View、Screencast 和 Viewport 代际变化后重放旧输入。
 
@@ -248,7 +248,6 @@ runtimeRemoved: true
 - 鼠标按下、移动、释放与滚轮；
 - 键盘修饰键、中文输入法与空格输入；
 - 系统剪贴板只通过最终 PasteEvent 进入页面，不读取或枚举历史；
-- Takeover 期间模型写操作受限，归还后恢复。
 
 ## 七、扩展与浏览器供应
 
@@ -418,8 +417,8 @@ Host 侧插件与 harness 同进程加载：插件在 `apply()` 里同步抛错�
 
 | 层级 | 入口 | 覆盖 | 结果 |
 | --- | --- | --- | --- |
-| 静态门禁 | `npm run typecheck` / `npm test` / `npm run build` | 类型、178 项单测、`lib/index.mjs` + `lib/client.js` + sourcemap | 0 错误 / 178 通过 / 构建成功 |
-| Runtime 层 | `npm run verify:tools` | 30 个 `browser_*` 工具的 145 项断言（含负例） | 145/145 通过 |
+| 静态门禁 | `npm run typecheck` / `npm test` / `npm run build` | 类型、171 项单测、`lib/index.mjs` + `lib/client.js` + sourcemap | 0 错误 / 171 通过 / 构建成功 |
+| Runtime 层 | `npm run verify:tools` | 29 个 `browser_*` 工具的 140 项断言（含负例） | 140/140 通过 |
 | 实例层 | `npm run verify:instance` | 沙箱实例加载 Client bundle、composer 槽位、认证 RPC 往返、console 洁净、截图 | 10/10 通过 |
 | 真实 UI 面板层 | `npm run verify:panel` | 沙箱实例里发消息形成正式 Session → 控制器菜单激活 → 面板 9 视图 + Provider 连接 + 实况帧/自适应 + 面板内人工接管与真实键鼠输入 | 33/33 通过 |
 | 扩展层 | `npm run verify:extensions` | 本地目录安装 MV3 扩展、注册表落盘、禁用/启用/卸载、popup 错误路径、拒绝 MV2 与坏 manifest、`apply` 不拆外部分支 | 19/19 通过 |
@@ -428,7 +427,7 @@ Host 侧插件与 harness 同进程加载：插件在 `apply()` 里同步抛错�
 
 Runtime 层使用真实 Chrome（`Chrome/155.0.8059.85`）经 `external-cdp` 连接，页面为 `scripts/verify/fixtures.mjs` 起的本地夹具站点；每轮输出 JSON + Markdown 报告到 `.sandbox/reports/`，退出码只看 FAIL。
 
-### 14.3 30 工具用例分布
+### 14.3 29 工具用例分布
 
 | 工具 | 用例 | 工具 | 用例 | 工具 | 用例 |
 | --- | --- | --- | --- | --- | --- |
@@ -440,7 +439,7 @@ Runtime 层使用真实 Chrome（`Chrome/155.0.8059.85`）经 `external-cdp` 连
 | browser_hover | 1 | browser_scroll | 2 | browser_live_view | 3 |
 | browser_press_key | 2 | browser_get_attribute | 2 | browser_split_view | 8 |
 | browser_wait_for | 4 | browser_take_screenshot | 2 | browser_extensions | 1 |
-| browser_console_messages | 2 | browser_network_requests | 2 | browser_takeover | 5 |
+| browser_console_messages | 2 | browser_network_requests | 2 | - | - |
 | browser_handle_dialog | 3 | browser_upload_file | 2 | browser_download | 1 |
 
 ### 14.4 本轮发现并修复的缺陷
@@ -474,7 +473,7 @@ npm run verify:managed        # 托管启动：executablePath/headless/代理/HT
 powershell -NoProfile -File scripts/verify/sandbox.ps1   # 独立 DSH_HOME 起实例，打印带 token 的 URL
 $env:DSH_VERIFY_URL = "http://127.0.0.1:31880/?token=<token>"; $env:DSH_VERIFY_TOKEN = "<token>"
 npm run verify:instance       # 实例层：Client bundle、composer 控件、RPC 往返
-npm run verify:panel          # 面板层：正式 Session → 激活 → 9 视图 → Provider → 实况 → 人工接管
+npm run verify:panel          # 面板层：正式 Session → 激活 → 9 视图 → Provider → 实况
 npm run verify:config         # 配置层：13 项配置在运行时的真实效果
 npm run verify:rpc            # RPC/持久化层：认证边界 + 控制器选择跨刷新
 npm run verify:persist -- --phase=prepare   # 认领并记录 marker
@@ -545,10 +544,10 @@ npm run verify:persist -- --phase=verify    # 5/5
 | 门禁 | 命令 | 结果 |
 | --- | --- | --- |
 | 严格类型检查 | `npm run typecheck` | 0 错误 |
-| 单元测试 | `npm test` | 178 / 178 通过 |
+| 单元测试 | `npm test` | 171 / 171 通过 |
 | 正式构建 | `npm run build` | 成功，产出 `lib/client.js` 与 `lib/index.mjs` |
 
-单测从 174 增至 178：新增/调整的用例覆盖三态绑定的配置补丁映射、`controller_overview` 与 `controller_set_browser_choice` 的路由与参数校验、`disabled` 分支、`externalCdpEndpoint` 的 schema 与策略透传、`BrowserController.list()`。
+单测由 178 收敛至 171：移除 input 模块与接管手势单测，其余 171 项覆盖三态绑定映射、控制器路由校验、disabled 分支、externalCdpEndpoint 透传、视口自适应等全部通过。
 
 ### 16.2 本轮改动与验收方式
 
@@ -592,7 +591,7 @@ npm run verify:persist -- --phase=verify    # 5/5
 
 ```powershell
 npm run typecheck
-npm test          # 178 / 178
+npm test          # 171 / 171
 npm run build     # lib/client.js + lib/index.mjs
 
 # 面板 / 设置页验收（桌面 Profile，手工）

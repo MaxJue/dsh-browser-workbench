@@ -30,7 +30,7 @@
 dsh-browser-workbench/
 ├── src/
 │   ├── application/       # Cordis 工具定义、元数据、配置项与安全审批策略
-│   │   ├── browser-tools.ts    # 30 个浏览器工具定义与参数 Schema
+│   │   ├── browser-tools.ts    # 29 个浏览器工具定义与参数 Schema
 │   │   ├── config.ts           # 插件配置项模型与 Schemastery Schema
 │   │   ├── security-policy.ts  # Pre-execute 审批与 Subagent 权限判定
 │   │   └── tool-metadata.ts    # 工具动作枚举、输出格式与验证指南
@@ -51,7 +51,6 @@ dsh-browser-workbench/
 │   ├── diagnostics/       # DOM 元素审查、上下文拓扑、飞行记录仪、事件日志与故障诊断
 │   ├── domain/            # 领域核心合同、协议定义、安全策略与统一错误模型 (无副作用)
 │   ├── extensions/        # Chrome CRX 扩展包解压、状态投影与弹窗视图
-│   ├── input/             # 用户人工接管（Takeover）、鼠标/键盘/滚轮手势注入与输入观察
 │   ├── page/              # 页面生命周期、网络请求拦截、弹窗对话框与取消操作
 │   ├── provider/          # Chromium 实例生命周期、外部 CDP 连接、Profile 与制品管理
 │   ├── runtime/           # 运行时继承基类与引擎装配链（Lean Core）
@@ -150,7 +149,7 @@ dsh-browser-workbench/
 # 1. 严格 TypeScript 类型检查（0 错误）
 npm run typecheck
 
-# 2. 自动化单元测试回归（178 项全部通过）
+# 2. 自动化单元测试回归（171 项全部通过）
 npm test
 
 # 3. 生产产物构建校验（双入口打包成功）

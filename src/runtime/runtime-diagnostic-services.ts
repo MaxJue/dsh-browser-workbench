@@ -226,11 +226,6 @@ export class BrowserRuntimeDiagnosticServices extends BrowserRuntimeInteractionS
       latestInspect: session.diagnosticPanel.latestInspect,
       latestComparison: session.diagnosticPanel.latestComparison,
       latestIncident: session.diagnosticPanel.latestIncident,
-      takeover: {
-        active: session.control.owner === 'user',
-        startedAt: session.diagnosticPanel.takeover?.startedAt,
-        latestSummary: session.diagnosticPanel.latestTakeoverSummary,
-      },
     }
   }
 
@@ -473,7 +468,6 @@ export class BrowserRuntimeDiagnosticServices extends BrowserRuntimeInteractionS
         session.diagnosticPanel.latestInspect = undefined
         session.diagnosticPanel.latestComparison = undefined
         session.diagnosticPanel.latestIncident = undefined
-        session.diagnosticPanel.latestTakeoverSummary = undefined
       }
       const debugSession = this.debugSessions.start({
         sessionKey: session.key,

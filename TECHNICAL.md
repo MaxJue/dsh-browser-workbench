@@ -4,7 +4,7 @@
 
 版本 `1.0.0-rc8` 面向 DSH `0.2.1-rc.2` / `0.2.1-rc.3`（peer 范围 `^0.2.1-rc.2 || ^0.2.1-rc.3`），使用 Cordis `~4.0.5` 和 Schemastery `~3.18.5`。
 
-本文说明 BrowserWorkbench 的配置项、工具注册模式、浏览器状态模型、安全边界、内部标识、30 个 Agent 工具、实况面板与设置页绑定规范。安装和功能概览见 [README](./README.md)，测试依据见 [测试报告](./VALIDATION.md)。
+本文说明 BrowserWorkbench 的配置项、工具注册模式、浏览器状态模型、安全边界、内部标识、29 个 Agent 工具、实况面板与设置页绑定规范。安装和功能概览见 [README](./README.md)，测试依据见 [测试报告](./VALIDATION.md)。
 
 ## 配置
 
@@ -88,8 +88,8 @@ BrowserWorkbench 支持三种工具注册模式，默认用 `global`：新 Sessi
 
 | 配置 | 设置页选择 | 注册行为 | 浏览器来源 |
 | --- | --- | --- | --- |
-| `global` + `providerMode: auto` | DSH BrowserWorkbench | 注册 30 个 `browser_*` 工具 | 自动启动会话专属 Chromium |
-| `global` + `providerMode: external` | 连接现有 Chrome / Edge | 注册 30 个 `browser_*` 工具 | 自动连接 `externalCdpEndpoint` |
+| `global` + `providerMode: auto` | DSH BrowserWorkbench | 注册 29 个 `browser_*` 工具 | 自动启动会话专属 Chromium |
+| `global` + `providerMode: external` | 连接现有 Chrome / Edge | 注册 29 个 `browser_*` 工具 | 自动连接 `externalCdpEndpoint` |
 | `session-select` | 设置页不提供（仅保留实现与测试） | 按 Session 首次选择后注册 | 依选择而定 |
 | `disabled` | 停用本插件 | 不注册任何工具 | 不分配，面板统一返回停用错误 |
 
@@ -104,7 +104,7 @@ BrowserWorkbench 支持三种工具注册模式，默认用 `global`：新 Sessi
     toolRegistrationMode: global
 ```
 
-在 Profile 层全局注册 30 个 `browser_*` 工具。若启动时发现已有其他插件注册了 `browser_*` 工具，BrowserWorkbench 会自动降级到 `session-select`，避免因 Cordis 名称冲突而阻断 DSH 启动。
+在 Profile 层全局注册 29 个 `browser_*` 工具。若启动时发现已有其他插件注册了 `browser_*` 工具，BrowserWorkbench 会自动降级到 `session-select`，避免因 Cordis 名称冲突而阻断 DSH 启动。
 
 ### 2. 按 Session 仲裁模式 (`session-select`, 可选)
 
@@ -118,7 +118,7 @@ BrowserWorkbench 支持三种工具注册模式，默认用 `global`：新 Sessi
 
 - **未选择前隐藏**：新建正式 Session 时，浏览器工具暂时不向 Agent 暴露，等待显式选择。设置页只写全局绑定、不提供按 Session 选择，该模式的入口是 RPC（`controller_activate` / `controller_select_other`）与 Profile 手改。
 - **用户自决选择**：可经 `controller_activate` 选择 DSH BrowserWorkbench，或经 `controller_select_other` 选择当前 Profile 中已有的第三方浏览器工具。
-- **独占锁定**：选择 BrowserWorkbench 后，当前 Agent Scope 独占注册本插件的 30 个工具；同名第三方工具被遮蔽，独有第三方工具被隐藏。选择第三方工具后，BrowserWorkbench 不注册工具且不分配页面资源。
+- **独占锁定**：选择 BrowserWorkbench 后，当前 Agent Scope 独占注册本插件的 29 个工具；同名第三方工具被遮蔽，独有第三方工具被隐藏。选择第三方工具后，BrowserWorkbench 不注册工具且不分配页面资源。
 - **跨重启持久化**：选择结果以 schema v2 写入 Session 对应的持久记录（`$DSH_HOME/browser-tools/controller/sessions/`）。DSH 重启或 Agent Scope 替换后自动恢复原选择。
 - **单向锁定防混淆**：同一个 Session 内严禁中途更换浏览器插件，防止 Agent 跨插件混淆 DOM 引用与会话状态。更换需求通过新建 Session 满足。
 - **释放不解绑**：调用 `controller_release` 释放 BrowserWorkbench 资源仅断开连接并清空页面，不解除 Session 的锁定状态。后续再调用工具只需重新连接 Provider。释放成功时快照带 `releasedAt`（毫秒时间戳），供客户端即时回执；该字段在 BrowserWorkbench 工具再次执行或重新激活时清除。运行时已无该 Session 资源时 `controller_release` 返回错误而不是伪成功。
@@ -166,7 +166,7 @@ Controller RPC 路由端点（挂载于 Connection 认证路由 `/api/browser-to
   - Network 请求暂停与拦截规则
   - ARIA Ref 映射、Snapshot 差异帧、Screencast 流与 Viewport 代际
   - 诊断 Checkpoint、Flight Recorder 飞行记录与 Artifact 制品
-  - 人工接管（Takeover）状态与双页分屏（Split View）
+  - 双页分屏（Split View）状态
 - **安全断开**：调用 `browser_provider disconnect` 或面板断开连接仅断开 CDP 传输协议，绝不强退或关闭用户浏览器。
 
 ## 安全边界
@@ -176,8 +176,7 @@ Controller RPC 路由端点（挂载于 Connection 认证路由 `/api/browser-to
 - **文件安全**：上传路径严格限制在 `uploadRoots` 白名单内，严禁路径穿越；下载与制品保存限制在 `artifactRoot` 内。
 - **有界脱敏**：Debugger 变量作用域、Console 输出、Network 报文与诊断时间线自动对 Token、密码、Authorization、Cookie 进行有界脱敏。
 - **高危操作审批**：`browser_evaluate` 无论在隔离世界还是主世界，均视为敏感操作并触发审批；`subagentInteractive=false` 时严禁委派子会话执行导航、点击、输入等写操作。
-- **剪贴板保护**：人工接管中仅接收最终 PasteEvent 事件，不枚举、不读取、不驻留操作系统全局剪贴板历史。
-- **人机挑战安全**：遇 CAPTCHA、短信/邮件验证码、Passkey/WebAuthn 等人机交互挑战时，严禁自动化绕过，必须暂停操作并请求人工接管。
+- **人机挑战安全**：遇 CAPTCHA、短信/邮件验证码、Passkey/WebAuthn 等人机交互挑战时，严禁自动化绕过，必须暂停操作并提示用户在独立浏览器中处理。
 - **视口代际防乱**：自适应实况利用 Host 初始化状态、串行尺寸上报与测量代际校验，丢弃过期尺寸输入，防止工具调用短暂尺寸覆盖稳定视口。
 
 ## 内部标识
@@ -192,7 +191,7 @@ LocalStorage 前缀: dsh-browser-tools.*
 Cordis 插件 id: browser-tools
 ```
 
-## 30 个 Agent 工具
+## 29 个 Agent 工具
 
 ### 1. 导航与页面操作（14 个）
 
@@ -235,20 +234,19 @@ Cordis 插件 id: browser-tools
 | `browser_evaluate` | `action`: isolated/main_world/paused_frame, `expression`, `awaitPromise` | 在隔离世界、主页面或暂停调用栈中安全求值 |
 | `browser_provider` | `action`: list/connect/disconnect/capabilities, `provider`: managed/external-cdp, `endpoint` | `managed` 启动本 Session 专属浏览器；`external-cdp` 连接现有 Chrome/Edge 调试端口 |
 
-### 4. 工作台与控制权（4 个）
+### 4. 工作台与展示（3 个）
 
 | 工具名 | 核心参数 | 描述 |
 | --- | --- | --- |
 | `browser_live_view` | `action`: status/standard/adaptive | 查询或切换实况显示模式（标准 1280x720 或面板自适应重排） |
 | `browser_split_view` | `action`: status/open/close/swap/assign/focus/ratio/orientation | 上下/左右双页分屏控制与比例调节 |
 | `browser_extensions` | `action`: list | 扩展注册表只读查询端点 |
-| `browser_takeover` | `action`: status/request/return/cancel | 人工接管独占锁控制，锁定期间 Agent 写操作返回 `USER_TAKEOVER_ACTIVE` |
 
 ## 实况面板
 
-客户端面板已瘦身为单视图：`src/client/components/panel/BrowserPanel.tsx` 只渲染三段——`TabBar`（标签页）、`NavigationBar`（地址栏与后退/前进/刷新）、`LiveView`（实况画面、人工接管、双页分屏、拖拽分享、关闭面板）。面板激活时固定调用 `controller.update(sessionId, tab.id, 'live')`，不再有视图路由。
+客户端面板已瘦身为单视图：`src/client/components/panel/BrowserPanel.tsx` 只渲染三段——`TabBar`（标签页）、`NavigationBar`（地址栏与后退/前进/刷新）、`LiveView`（实况画面、双页分屏、拖拽分享、关闭面板）。面板激活时固定调用 `controller.update(sessionId, tab.id, 'live')`，不再有视图路由。
 
-- **实况画面**：Screencast 流 + 面板内鼠标/键盘接管，`browser_live_view` 的 `standard`/`adaptive` 两种显示模式不变。
+- **实况画面**：Screencast 实时推流，`browser_live_view` 的 `standard`/`adaptive` 两种显示模式不变。
 - **双页分屏**：`browser_split_view` 的 open/close/swap/assign/focus/ratio/orientation 语义不变。
 - **诊断与性能**：面板内的「打开诊断」按钮与 Recorder（Rolling/Deep/stop/mark）控件已移除，`browser_diagnose`、`browser_profile` 的 Agent 工具能力完全不变；面板侧只保留 `views/live/DiagnosticOverlay.tsx`（由 `LivePane` 使用）做现场提示。
 - **面板托管**：标签栏与右侧标签页生命周期仍由 DSH 官方 Tab 机制托管，关闭、切换与多 Pane 行为按 Session 严格隔离。

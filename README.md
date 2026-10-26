@@ -9,10 +9,10 @@
 ![License](https://img.shields.io/badge/license-MIT-2563EB?style=for-the-badge)
 ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2%20%7C%200.2.1--rc.3-7C3AED?style=for-the-badge)
 ![Node](https://img.shields.io/badge/Node-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-16A34A?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-178%20passing-22C55E?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-171%20passing-22C55E?style=for-the-badge)
 ![Status](https://img.shields.io/badge/status-1.0.0--rc8%20%C2%B7%20not%20on%20npm-F97316?style=for-the-badge)
 
-[源码安装](#安装) · [看图了解](#能力展示) · [30 个工具](#功能介绍) · [验证结果](#验证结果) · [技术细节](./TECHNICAL.md) <br> <br>
+[源码安装](#安装) · [看图了解](#能力展示) · [29 个工具](#功能介绍) · [验证结果](#验证结果) · [技术细节](./TECHNICAL.md) <br> <br>
 当前语言为简体中文 | [English](./README.en.md)
 
 </div>
@@ -34,7 +34,7 @@
 | 目标宿主 | DSH `0.2.1-rc.2` / `0.2.1-rc.3`（peer 声明为范围 `^0.2.1-rc.2 \|\| ^0.2.1-rc.3`），Cordis `~4.0.5`，Schemastery `~3.18.5` |
 | npm 状态 | **未发布**。首次发布流程尚未执行，npm 安装方式目前不可用 |
 | 仓库内容 | 源码 + 测试 + 文档；**不含** `lib/` 构建产物，也不含 `node_modules`、`.sandbox`、`.npm-cache` |
-| 已实测通过 | 严格类型检查、178 个单测、正式构建、30 工具真实 Chromium 回归、独立进程 + 独立 `DSH_HOME` 的分层验证 |
+| 已实测通过 | 严格类型检查、171 个单测、正式构建、29 工具真实 Chromium 回归、独立进程 + 独立 `DSH_HOME` 的分层验证 |
 | 待完成 | 面板与 RPC 两个 e2e 脚本按新 UI 重写；全新 DSH Web Profile 的安装/启动/认证/卸载人工验收；npm 首次发布 |
 | 未声明兼容 | DSH `0.1.x`(RC7 及更早)、macOS / Linux 实机、任意第三方浏览器插件 |
 
@@ -42,9 +42,9 @@
 
 前端调试最头疼的是什么？看不到页面结构、抓不到请求细节、断点打不进去、错误只有一句话。Agent 遇到复杂网页问题时更麻烦——只能截个图、描述几句，然后陷入"刷新试试""清缓存看看"的循环。
 
-BrowserWorkbench 在 DSH Web 右侧栏提供一个可操作的浏览器工作台，配备 30 个专门定制的自动化工具。右侧面板只保留人真正需要的东西：标签栏、地址栏（前进 / 后退 / 刷新）、真实页面实况与人工接管。Console、Network、Debugger、Performance、Emulation、诊断、Provider 与扩展管理这 8 个视图已经从面板移除——这些能力本来就属于 Agent，全部由 `browser_*` 工具直接提供（`browser_console_messages`、`browser_network_requests`、`browser_debugger`、`browser_profile`、`browser_diagnose`、`browser_emulate` 等），不再做一份人肉 UI 复刻。Agent 能直接读页面结构、操作元素、查看 Console、追踪请求、下断点、读调用栈、解析 Source Map、分析性能，并把操作前后的完整现场记录下来。
+BrowserWorkbench 在 DSH Web 右侧栏提供一个可操作的浏览器工作台，配备 29 个专门定制的自动化工具。右侧面板只保留人真正需要的东西：标签栏、地址栏（前进 / 后退 / 刷新）与真实页面实况。Console、Network、Debugger、Performance、Emulation、诊断、Provider 与扩展管理这 8 个视图已经从面板移除——这些能力本来就属于 Agent，全部由 `browser_*` 工具直接提供（`browser_console_messages`、`browser_network_requests`、`browser_debugger`、`browser_profile`、`browser_diagnose`、`browser_emulate` 等），不再做一份人肉 UI 复刻。Agent 能直接读页面结构、操作元素、查看 Console、追踪请求、下断点、读调用栈、解析 Source Map、分析性能，并把操作前后的完整现场记录下来。
 
-**入口在右侧栏「开始」页**：注册 `sidebarRightTabs` 时带了一枚 `guide` 条目，打开右侧栏的「开始」页就能看到一张卡片——标题「浏览器实况」、描述「查看并接管 Agent 正在操作的浏览器」，点一下就打开面板。**输入框下方不再有任何浏览器绑定控件**：原来的 `BrowserControl`、`ControllerMenu`、`ArbitratedToolsDialog` 以及自动弹出面板的行为都已删除，绑定只在设置页做。
+**入口在右侧栏「开始」页**：注册 `sidebarRightTabs` 时带了一枚 `guide` 条目，打开右侧栏的「开始」页就能看到一张卡片——标题「浏览器实况」、描述「查看 Agent 正在操作的浏览器」，点一下就打开面板。**输入框下方不再有任何浏览器绑定控件**：原来的 `BrowserControl`、`ControllerMenu`、`ArbitratedToolsDialog` 以及自动弹出面板的行为都已删除，绑定只在设置页做。
 
 **开箱即用，每个 Session 一个独立浏览器**：工具默认全局注册，新 Session 无需再选择或手动绑定。Agent 第一次调用浏览器工具时，插件自动为该 Session 启动一个独立的持久化 Chromium（`providerMode: auto`），页面、Cookie 与登录态互不共享，不同项目并行时互不干扰。需要连接自己已开启远程调试的 Chrome 或 Edge 时，首选 **设置 → 浏览器 → 连接现有 Chrome / Edge**：填好调试端点后点「连接」，之后 Session 首次调用浏览器工具会自动连上该端点。`browser_provider` 仍然可用，适合在会话里临时 connect / disconnect。
 
@@ -67,19 +67,19 @@ BrowserWorkbench 在 DSH Web 右侧栏提供一个可操作的浏览器工作台
 
 ### 怎么打开面板
 
-右侧栏切到「开始」页，第二张卡片就是「浏览器实况」，描述为「查看并接管 Agent 正在操作的浏览器」。点一下卡片就打开面板，它和 Agent 共用同一套浏览器工具，不需要再选绑定。
+右侧栏切到「开始」页，第二张卡片就是「浏览器实况」，描述为「查看 Agent 正在操作的浏览器」。点一下卡片就打开面板，它和 Agent 共用同一套浏览器工具，不需要再选绑定。
 
 ![右侧栏「开始」页的「浏览器实况」卡片](./assets/browser-workbench-entry.png)
 
 ### 一个窗口，完整调试链路
 
-Agent 对话、真实页面、标签栏与地址栏都在 DSH 右侧栏的同一个窗口里。面板刻意做薄：它只负责让你看见 Agent 正在操作的那个页面，并在需要时把鼠标和键盘交给你。调试结论、报错原文、请求列表、调用栈这些内容回到对话里呈现——它们由工具调用产生，不占面板空间。
+Agent 对话、真实页面、标签栏与地址栏都在 DSH 右侧栏的同一个窗口里。面板刻意做薄：它只负责让你看见 Agent 正在操作的那个页面。调试结论、报错原文、请求列表、调用栈这些内容回到对话里呈现——它们由工具调用产生，不占面板空间。
 
 **典型排查场景**：页面布局突然错乱。Agent 调用 `browser_snapshot` 获取页面 ARIA 结构树与元素引用，结合 `browser_get_attribute` 或 `browser_diagnose inspect` 审查样式与容器属性，发现某个容器被异步脚本隐藏。接着用 `browser_debugger` 在相关脚本里下断点，配合 Source Map 找到原始代码位置，再用 `browser_console_messages` 与 `browser_network_requests` 交叉验证，最终定位到一个状态更新时序问题。整个过程中你都能在右侧实况里盯着同一个页面。
 
 ### 双页实况，同时盯梢
 
-面板支持上下或左右并排两个真实页面，独立画面、独立焦点，由 `browser_split_view` 驱动：做响应式检查时上下排列，跨页面对比时左右排列。双页共用同一个面板外壳，画面、地址栏与接管都按各自的页面走。
+面板支持上下或左右并排两个真实页面，独立画面、独立焦点，由 `browser_split_view` 驱动：做响应式检查时上下排列，跨页面对比时左右排列。双页共用同一个面板外壳，画面与地址栏都按各自的页面走。
 
 ### 绑定在设置页，全局一份
 
@@ -87,7 +87,7 @@ Agent 对话、真实页面、标签栏与地址栏都在 DSH 右侧栏的同一
 
 ![设置页的「浏览器」分区，默认选中 DSH BrowserWorkbench](./assets/browser-workbench-settings.png)
 
-- **DSH BrowserWorkbench**（默认，`choice: workbench`）：为本插件自动启动独立的 Chromium，所有 Session 与子代理共用这套 30 个 `browser_*` 工具，页面、Cookie 与登录态按会话隔离。
+- **DSH BrowserWorkbench**（默认，`choice: workbench`）：为本插件自动启动独立的 Chromium，所有 Session 与子代理共用这套 29 个 `browser_*` 工具，页面、Cookie 与登录态按会话隔离。
 - **连接现有 Chrome / Edge**（`choice: existing`）：不启动新浏览器，直接连你平时用的那个窗口，沿用它的登录态、Cookie 与扩展。展开后填调试端点（默认 `http://127.0.0.1:9222`）再点「连接」，配置里写入 `providerMode: external` 与 `externalCdpEndpoint`，之后 Session 首次调用浏览器工具会**自动连上**该端点，无需 Agent 再手动 connect。
 - **停用本插件，把浏览器工具让给其他插件**（页脚次级开关，`choice: off`，即 `toolRegistrationMode: disabled`）：本插件完全不注册工具、也不创建 controller，把浏览器能力让给别的插件——这是真的退出，而不是静默失败。
 
@@ -218,20 +218,14 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 | 保存大文件 | 把 Trace、CPU Profile、Coverage 和 Heap 存成制品并标注大小 | `browser_profile` |
 | 生成 Incident 报告 | 汇总后内联返回 markdown，受输出上限截断（不落盘） | `browser_diagnose` |
 
-### 实况与人工接管
+### 浏览器实况
 
 | 功能 | 说明 | 工具 |
 | --- | --- | --- |
 | 查看实况 | 在右侧栏持续查看当前页面 | `browser_live_view` |
-| 自动调整尺寸 | 页面跟随面板尺寸变化，避免输入坐标错乱 | `browser_live_view`, `browser_emulate` |
+| 自动调整尺寸 | 页面跟随面板尺寸变化，避免视口错乱 | `browser_live_view`, `browser_emulate` |
 | 上下双页 | 同时查看两个页面 | `browser_split_view` |
 | 左右双页 | 横向查看两个页面 | `browser_split_view` |
-| 人工点击 | 用鼠标直接操作页面 | `browser_takeover` |
-| 人工输入 | 用键盘输入文本和组合键 | `browser_takeover` |
-| 中文输入 | 正常输入中文，不会拆成错误按键 | `browser_takeover` |
-| 粘贴内容 | 使用最终粘贴事件，不读取剪贴板历史 | `browser_takeover` |
-| 人工接管 | 暂时接管页面，完成后把控制权还给 Agent | `browser_takeover` |
-| 防止旧输入 | 视口生成号变化后拒绝过期坐标输入（帧序号只随请求携带，不单独校验） | `browser_takeover` |
 
 ### 扩展与浏览器环境
 
@@ -248,11 +242,11 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 
 | 功能 | 说明 |
 | --- | --- |
-| 默认全局注册 | `toolRegistrationMode: global`（默认）：30 个工具在 Profile 层注册，新 Session 直接可用，不再需要每次选择 |
+| 默认全局注册 | `toolRegistrationMode: global`（默认）：29 个工具在 Profile 层注册，新 Session 直接可用，不再需要每次选择 |
 | 安全降级 | 全局模式启动时若已存在 `browser_` 前缀的工具，自动改为按 Session 选择 |
 | 按 Session 选择（可选） | `session-select` 仍留在实现里，但设置页不再提供，仅供测试与旧配置使用；该模式下正式 Session 第一次使用浏览器前选择 BrowserWorkbench 或其他浏览器工具 |
 | Session 锁定 | `session-select` 选择后不能在同一个 Session 中更换浏览器插件；需要更换时新建 Session |
-| 按需注册 | `session-select` 下选择 BrowserWorkbench 后，只在当前 Session 注册 30 个工具 |
+| 按需注册 | `session-select` 下选择 BrowserWorkbench 后，只在当前 Session 注册 29 个工具 |
 | 释放资源 | 断开浏览器连接并清空该 Session 的视图与调试状态，不解除锁定 |
 | 重启恢复 | DSH 重启或 Agent Scope 替换后，继续恢复该 Session 已保存的选择 |
 | 自动启动浏览器 | `providerMode: auto`（默认）时，Session 首次调用浏览器工具会自动启动该 Session 专属 Chromium，无需手动连接 |
@@ -262,7 +256,7 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 | 共享网站状态 | 仅当多个 Session 连接同一个外部浏览器时：Cookie、LocalStorage、IndexedDB、Cache Storage、HTTP 缓存、Service Worker 和权限由该浏览器共享 |
 | 共享浏览器标签 | 仅 `external-cdp` 连接同一个 endpoint 时：多个 Session 看到同一批标签页，插件不按 Session 拆分或复制标签 |
 | 隔离调试状态 | Debugger、请求拦截、Ref、Snapshot 和实况画面按 Session 分别保存 |
-| 隔离文件 | Artifact、Takeover 和 Controller 状态按 Session 隔离 |
+| 隔离文件 | Artifact 和 Controller 状态按 Session 隔离 |
 | 页面来源跟踪 | 只在托管 `shared-persistent` 模式下启用：`window.open()` 页面继承 Owner，来源不明的页面会被关闭（该模式工具面不可达） |
 | 恢复页面布局 | 浏览器 Context 重建后，恢复各 Session 的地址、活动标签和双页布局 |
 
@@ -270,15 +264,14 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 
 ```
 src/
-├── application/   工具定义（30 个 browser_*）、配置 schema、安全策略、工具元数据
+├── application/   工具定义（29 个 browser_*）、配置 schema、安全策略、工具元数据
 ├── cdp/           CDP 会话与协议级事件（debugger / fetch / screencast / profile / script）
-├── client/        React 19 界面：实况面板（标签栏、地址栏、实况、接管）与设置页「浏览器」分区
+├── client/        React 19 界面：实况面板（标签栏、地址栏、实况）与设置页「浏览器」分区
 ├── compat/        DSH Connection/RPC 适配层、消息与 RPC 分发
 ├── controller/    Session 级控制器仲裁（browser-controller）
 ├── diagnostics/   取证：Flight Recorder、Context/Build Identity、Incident、Source Map
 ├── domain/        纯协议契约：types、protocol、errors、policy
 ├── extensions/    CRX3 解包、扩展注册表、扩展 popup
-├── input/         人工接管、键鼠/指针手势、输入观察
 ├── page/          导航、网络录制与拦截、对话框、页面诊断
 ├── provider/      外部 CDP 连接、托管启动配置、持久化 Profile、Artifact 存储
 ├── runtime/       编排层（每个文件都控制在数百行内）
@@ -289,7 +282,7 @@ tests/             覆盖 13 个领域（compat 暂无独立测试目录）
 scripts/verify/    e2e 验证脚本与本地夹具站点
 ```
 
-源码规模：`src/` 139 个文件约 1.63 万行（不计空行）；`tests/` 57 个文件、178 个用例。Architecture 约束见 [AGENTS.md](./AGENTS.md) 与 [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md)。
+源码规模：`src/` 139 个文件约 1.63 万行（不计空行）；`tests/` 55 个文件、171 个用例。Architecture 约束见 [AGENTS.md](./AGENTS.md) 与 [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md)。
 
 ## 开发与验证
 
@@ -297,19 +290,19 @@ scripts/verify/    e2e 验证脚本与本地夹具站点
 
 ```powershell
 npm run typecheck    # tsc --noEmit，0 错误
-npm test             # 178 个单测全部通过
+npm test             # 171 个单测全部通过
 npm run build        # tsdown，产出 lib/index.mjs 与 lib/client.js
 ```
 
 需要真实浏览器时，再按需单独跑对应层级（**不会隐式下载 Chromium**，需要自己提供已就绪的浏览器与本地夹具站点）：
 
 ```powershell
-npm run verify:tools       # Runtime 层：30 个 browser_* 工具的 145 项断言（真实 Chrome + 本地夹具站点）
+npm run verify:tools       # Runtime 层：29 个 browser_* 工具的 140 项断言（真实 Chrome + 本地夹具站点）
 npm run verify:extensions  # 扩展层：MV3 本地安装、注册表落盘、启停卸载、popup 与非法输入（19 项）
 npm run verify:managed     # 托管层：executablePath/headless、三种代理、HTTPS CONNECT、离线安装（16 项）
 npm run verify:sandbox     # 起独立 DSH_HOME 实例，打印带 token 的地址
 npm run verify:instance    # 实例层：Client bundle、认证 RPC 往返（10 项）
-npm run verify:panel       # 面板层：正式 Session → 设置页绑定 → 实况 → 人工接管（脚本仍按旧 composer 菜单与九视图断言，正在重写）
+npm run verify:panel       # 面板层：正式 Session → 设置页绑定 → 实况（脚本仍按旧 composer 菜单与九视图断言，正在重写）
 npm run verify:config      # 配置层：13 项配置的运行时真实效果
 npm run verify:rpc         # RPC/持久化层：认证边界、信封契约、控制器选择跨刷新（16 项；部分断言按旧 UI，正在重写）
 npm run verify:persist -- --phase=prepare   # 认领控制器并记录 marker

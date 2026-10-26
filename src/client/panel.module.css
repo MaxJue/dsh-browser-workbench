@@ -50,10 +50,8 @@
 .splitDivider[data-orientation="left-right"] { cursor: col-resize; border-left: 2px solid #111; border-right: 2px solid #111; }
 .splitDivider:hover, .splitDivider:focus-visible { background: var(--dsw-alias-accent, #4c8dff); }
 .live { min-width: 0; min-height: 0; width: 100%; height: 100%; max-width: 100%; max-height: 100%; display: block; object-fit: contain; outline: none; background: #111; user-select: none; -webkit-user-drag: none; }
-.live[data-takeover] { cursor: default; }
 .live[data-share-drag] { cursor: grab; -webkit-user-drag: element; }
 .live[data-share-drag]:active { cursor: grabbing; }
-.live[data-takeover]:focus { box-shadow: inset 0 0 0 2px var(--dsw-alias-warning-text, #d99614); }
 .diagnosticOverlay { position: absolute; inset: 0; z-index: 3; width: 100%; height: 100%; pointer-events: none; }
 .diagnosticTarget { fill: color-mix(in srgb, var(--dsw-alias-accent, #4c8dff) 16%, transparent); stroke: var(--dsw-alias-accent, #4c8dff); stroke-width: 2; vector-effect: non-scaling-stroke; }
 .diagnosticOccluder { fill: color-mix(in srgb, var(--dsw-alias-warning-text, #d99614) 18%, transparent); stroke: var(--dsw-alias-warning-text, #d99614); stroke-width: 2; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }

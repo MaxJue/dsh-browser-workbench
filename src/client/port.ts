@@ -5,7 +5,6 @@ import type {
   BrowserEmulateInput,
   BrowserExtensionInput,
   BrowserFrameCursor,
-  BrowserInputTraceUpdate,
   BrowserLiveViewInput,
   BrowserNetworkInput,
   BrowserPanelActivity,
@@ -17,8 +16,6 @@ import type {
   BrowserRecorderInput,
   BrowserSplitViewInput,
   BrowserSplitViewPane,
-  BrowserTakeoverInput,
-  BrowserUserInput,
 } from '../domain/protocol.ts'
 import { valueOf } from './panel-model.ts'
 
@@ -73,9 +70,6 @@ export interface Port {
   emulate(sessionId: string, input: BrowserEmulateInput): Promise<unknown>
   liveView(sessionId: string, input: BrowserLiveViewInput): Promise<unknown>
   splitView(sessionId: string, input: BrowserSplitViewInput): Promise<unknown>
-  takeover(sessionId: string, input: BrowserTakeoverInput): Promise<unknown>
-  input(sessionId: string, input: BrowserUserInput): Promise<unknown>
-  inputTrace(sessionId: string, input: BrowserInputTraceUpdate): Promise<unknown>
   recorder(sessionId: string, input: BrowserRecorderInput): Promise<unknown>
   close(sessionId: string, view: BrowserPanelView): Promise<void>
 }
@@ -103,9 +97,6 @@ export function createPort(connection: ConnectionHandle): Port {
     emulate: (sessionId, input) => call('emulate', { sessionId, ...input }),
     liveView: (sessionId, input) => call('live_view', { sessionId, ...input }),
     splitView: (sessionId, input) => call('split_view', { sessionId, ...input }),
-    takeover: (sessionId, input) => call('takeover', { sessionId, ...input }),
-    input: (sessionId, input) => call('input', { sessionId, ...input }),
-    inputTrace: (sessionId, input) => call('input_trace', { sessionId, ...input }),
     recorder: (sessionId, input) => call('recorder', { sessionId, ...input }),
     close: async (sessionId, view) => { await call('close', { sessionId, view }) },
   }

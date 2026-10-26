@@ -29,11 +29,6 @@ export function debuggerPauseResponse(view: ViewState, action: string): ToolOutp
   return { ok: false, action, viewId: view.viewId, data: asData({ code: 'DEBUGGER_PAUSED', recoverable: true, message: 'The page is paused in the JavaScript debugger.', next: { tool: 'browser_debugger', arguments: { action: 'resume', viewId: view.viewId } } }) }
 }
 
-export function userTakeoverResponse(session: SessionState, view: ViewState, action: string): ToolOutput | undefined {
-  if (session.control.owner !== 'user') return undefined
-  return { ok: false, action, viewId: view.viewId, data: asData({ code: 'USER_TAKEOVER_ACTIVE', recoverable: true, message: 'The user currently has exclusive browser control.', next: { tool: 'browser_takeover', arguments: { action: 'status', viewId: view.viewId } } }) }
-}
-
 export function staleReferenceResponse(view: ViewState, action: string): ToolOutput {
   return { ok: false, action, viewId: view.viewId, data: asData({ code: 'STALE_REF', recoverable: true, message: 'The page changed after the snapshot; the element ref is no longer valid.', next: { tool: 'browser_snapshot', arguments: { viewId: view.viewId, includeDiff: true } } }) }
 }

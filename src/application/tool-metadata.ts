@@ -1,6 +1,6 @@
 import { BrowserError } from '../domain/errors.ts'
 import type { Identity, ToolOutput } from '../domain/types.ts'
-import type { BrowserDebuggerAction, BrowserDiagnoseAction, BrowserEmulateAction, BrowserEvaluateAction, BrowserExtensionAction, BrowserLiveViewAction, BrowserNetworkAction, BrowserPanelTabAction, BrowserPanelView, BrowserProfileAction, BrowserProviderAction, BrowserRecorderAction, BrowserSplitViewAction, BrowserTakeoverAction } from '../domain/protocol.ts'
+import type { BrowserDebuggerAction, BrowserDiagnoseAction, BrowserEmulateAction, BrowserEvaluateAction, BrowserExtensionAction, BrowserLiveViewAction, BrowserNetworkAction, BrowserPanelTabAction, BrowserPanelView, BrowserProfileAction, BrowserProviderAction, BrowserRecorderAction, BrowserSplitViewAction } from '../domain/protocol.ts'
 import type { ToolRunContext, ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
 
 export const outputSchema = { type: 'object' as const, additionalProperties: false, properties: { ok: { type: 'boolean' as const, required: true as const }, action: { type: 'string' as const, required: true as const }, viewId: { type: 'string' as const }, data: { type: 'json' as const } } } satisfies ValueSchemaSpec
@@ -19,7 +19,7 @@ export const debuggerActions: BrowserDebuggerAction[] = ['attach', 'detach', 'pa
 export const diagnoseActions: BrowserDiagnoseAction[] = ['start', 'status', 'inspect', 'checkpoint', 'compare', 'report', 'stop', 'recorder_status', 'recorder_start', 'recorder_pause', 'recorder_resume', 'recorder_clear', 'recorder_stop', 'recorder_mark', 'recorder_complete', 'recorder_timeline']
 export const recorderActions: BrowserRecorderAction[] = ['status', 'start', 'pause', 'resume', 'clear', 'stop', 'mark', 'complete']
 export const networkActions: BrowserNetworkAction[] = ['enable', 'disable', 'list_paused', 'continue', 'abort', 'fulfill', 'body', 'replay']
-export const verificationGuidance = 'If the page shows CAPTCHA, human verification, SMS or email verification codes, Passkey/WebAuthn, device confirmation, or another security challenge, stop automated interaction immediately, do not bypass or submit the challenge, tell the user what is visible, and request human takeover.'
+export const verificationGuidance = 'If the page shows CAPTCHA, human verification, SMS or email verification codes, Passkey/WebAuthn, device confirmation, or another security challenge, stop automated interaction immediately, do not bypass or submit the challenge, tell the user what is visible, and ask the user to complete it in their browser.'
 export const profileActions: BrowserProfileAction[] = ['trace_start', 'trace_stop', 'playwright_trace_start', 'playwright_trace_stop', 'cpu_start', 'cpu_stop', 'coverage_start', 'coverage_stop', 'heap_snapshot', 'heap_sampling_start', 'heap_sampling_stop', 'artifacts', 'artifact_read']
 export const providerChoices = ['managed', 'external-cdp'] as const
 export const extensionChoices = ['list'] as const
@@ -27,7 +27,6 @@ export const emulateActions: BrowserEmulateAction[] = ['viewport', 'device', 'lo
 export const evaluateActions: BrowserEvaluateAction[] = ['isolated', 'main_world', 'paused_frame']
 export const providerActions: BrowserProviderAction[] = ['list', 'connect', 'disconnect', 'capabilities']
 export const extensionActions: BrowserExtensionAction[] = ['list', 'install', 'enable', 'disable', 'uninstall', 'apply', 'open_popup', 'close_popup']
-export const takeoverActions: BrowserTakeoverAction[] = ['status', 'request', 'return', 'cancel']
 export const liveViewActions: BrowserLiveViewAction[] = ['status', 'standard', 'adaptive', 'initialize', 'resize']
 export const splitViewActions: BrowserSplitViewAction[] = ['status', 'open', 'close', 'swap', 'assign', 'focus', 'ratio', 'orientation', 'resize']
 export const panelTabActions: BrowserPanelTabAction[] = ['new', 'select', 'close', 'back', 'forward', 'reload', 'navigate']

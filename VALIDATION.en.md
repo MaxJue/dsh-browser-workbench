@@ -6,7 +6,7 @@ This document records the objectives, procedures, and empirical results of valid
 
 > October 2026 update: the default registration mode is now `global`, and `providerMode: auto` launches a dedicated persistent Chromium per session on the first browser tool call. Notes below such as "managed launch is not exposed on the tool surface", "the provider only accepts `external-cdp`", and "no background browser spawning" describe the code state at the time of that run and no longer apply.
 
-> 2026-10-26 update: the client panel is now a single live view, the composer binding controls are gone, and the settings-page three-way binding, `disabled` mode, `externalCdpEndpoint`, and external CDP auto-connect were added; unit tests now stand at 178. Conclusions in sections 2, 7, and 8 that depend on the nine views, the controller menu, or the composer control are superseded and annotated in section 9.
+> 2026-10-26 update: the client panel is now a single live view, human takeover has been removed in favor of pure screencast observation, composer binding controls are gone, and settings-page three-way binding was added; tools stand at 29 and unit tests stand at 171. Conclusions in sections 2, 7, and 8 that depend on the nine views, the controller menu, or composer controls are superseded and annotated in section 9.
 
 Release candidate states are formally anchored by external candidate identity descriptors and tarball digests.
 
@@ -32,7 +32,7 @@ Against DSH `0.2.1-rc.2`, strict typecheck, production Host/Client build, `pnpm 
 
 **Objective**: Ensure all 30 Agent browser tools operate end-to-end against real Chromium instances rather than mocking layers or unit stubs.
 
-**Scope**: Tab management, navigation, observation, interactions, upload/download, console capture, network interception, debugger stepping, Source Map resolution, performance profiling, emulation, provider orchestration, extensions, takeover, and forensic diagnostics.
+**Scope**: Tab management, navigation, observation, interactions, upload/download, console capture, network interception, debugger stepping, Source Map resolution, performance profiling, emulation, provider orchestration, extensions, and forensic diagnostics.
 
 **Result**:
 
@@ -142,7 +142,7 @@ The sandbox mounts the working tree through `link:`, so a rebuild plus restart r
 
 | Layer | Entry | Coverage | Result |
 | --- | --- | --- | --- |
-| Static gates | `npm run typecheck` / `npm test` / `npm run build` | types, 178 unit tests, `lib/index.mjs` + `lib/client.js` + sourcemap | 0 errors / 178 passed / clean build |
+| Static gates | `npm run typecheck` / `npm test` / `npm run build` | types, 171 unit tests, `lib/index.mjs` + `lib/client.js` + sourcemap | 0 errors / 171 passed / clean build |
 | Runtime | `npm run verify:tools` | 145 assertions over all 30 `browser_*` tools, including negative paths | 145/145 passed |
 | Instance | `npm run verify:instance` | client bundle loaded in the sandbox instance, composer control, authenticated RPC round trip, clean console, screenshot | 10/10 passed |
 | Real UI panel | `npm run verify:panel` | send a message to reach a formal session, activate through the controller menu, then 9 panel views + Provider connect + live frames/adaptive sizing + in-panel human takeover with real mouse and keyboard input | 33/33 passed |
@@ -226,10 +226,10 @@ npm run verify:persist -- --phase=verify    # 5/5
 | Gate | Command | Result |
 | --- | --- | --- |
 | Strict typecheck | `npm run typecheck` | 0 errors |
-| Unit tests | `npm test` | 178 / 178 passed |
+| Unit tests | `npm test` | 171 / 171 passed |
 | Production build | `npm run build` | clean, emits `lib/client.js` and `lib/index.mjs` |
 
-Unit tests grew from 174 to 178; the added/adjusted cases cover the three-way binding's configuration patch mapping, `controller_overview` and `controller_set_browser_choice` routing and parameter validation, the `disabled` branch, `externalCdpEndpoint` schema/policy pass-through, and `BrowserController.list()`.
+Unit tests adjusted to 171; input module and gesture cases removed while all remaining 171 tests pass cleanly.
 
 ### 9.2 Changes and how each was accepted
 
@@ -273,7 +273,7 @@ Unit tests grew from 174 to 178; the added/adjusted cases cover the three-way bi
 
 ```powershell
 npm run typecheck
-npm test          # 178 / 178
+npm test          # 171 / 171
 npm run build     # lib/client.js + lib/index.mjs
 
 # Panel / settings acceptance (desktop profile, manual)

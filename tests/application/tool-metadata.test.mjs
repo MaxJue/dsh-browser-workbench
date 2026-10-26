@@ -16,7 +16,6 @@ import {
   providerActions,
   recorderActions,
   splitViewActions,
-  takeoverActions,
 } from '../../src/application/tool-metadata.ts'
 
 const actionSets = {
@@ -35,7 +34,6 @@ const actionSets = {
   providerActions,
   recorderActions,
   splitViewActions,
-  takeoverActions,
 }
 
 test('every tool action set is non-empty and contains no duplicate values', () => {
@@ -47,7 +45,6 @@ test('every tool action set is non-empty and contains no duplicate values', () =
 
 test('critical recovery and diagnostic actions remain available', () => {
   assert.ok(debuggerActions.includes('resume'))
-  assert.ok(takeoverActions.includes('request'))
   assert.ok(networkActions.includes('continue'))
   assert.ok(diagnoseActions.includes('checkpoint'))
   assert.ok(recorderActions.includes('complete'))

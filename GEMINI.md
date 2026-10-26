@@ -37,7 +37,7 @@ This repository enforces strict domain-driven modularity, strict file-size limit
 
 8. **Mandatory Quality Gates**:
    - `npm run typecheck` must pass with 0 errors.
-   - `npm test` must pass all tests (178/178 pass).
+   - `npm test` must pass all tests (171/171 pass).
    - `npm run build` must generate valid bundles.
 
 For the comprehensive specification, see [`DIRECTORY_SPECIFICATION.md`](./DIRECTORY_SPECIFICATION.md).

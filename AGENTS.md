@@ -55,7 +55,7 @@ This repository follows a strict domain-driven architecture and code organizatio
 
 Before finishing any task, run the full verification pipeline:
 1. `npm run typecheck` (`tsc --noEmit -p tsconfig.json`) -> **Must have 0 errors**.
-2. `npm test` (`node --experimental-strip-types --test tests/**/*.test.mjs`) -> **100% of unit tests must pass (178/178 passed, 0 failed)**.
+2. `npm test` (`node --experimental-strip-types --test tests/**/*.test.mjs`) -> **100% of unit tests must pass (171/171 passed, 0 failed)**.
 3. `npm run build` (`tsdown`) -> **Must build cleanly** (`lib/client.js` and `lib/index.mjs`).
 
 Refer to [`DIRECTORY_SPECIFICATION.md`](./DIRECTORY_SPECIFICATION.md) for full architectural details.

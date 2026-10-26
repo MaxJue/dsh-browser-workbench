@@ -204,12 +204,6 @@ export interface ViewState {
     reflowedElements: number
     fitDocumentGeneration: number
   }
-  userPointer?: {
-    button: 'left' | 'middle' | 'right'
-    clickCount: number
-    streamGeneration: number
-    viewportGeneration: number
-  }
 }
 
 export interface SessionState {
@@ -262,14 +256,6 @@ export interface SessionState {
     latestInspect?: NonNullable<BrowserDiagnosticPanelSnapshot['latestInspect']>
     latestComparison?: NonNullable<BrowserDiagnosticPanelSnapshot['latestComparison']>
     latestIncident?: NonNullable<BrowserDiagnosticPanelSnapshot['latestIncident']>
-    takeover?: {
-      startedAt: number
-      startedSequence: number
-      viewId: string
-      documentGeneration: number
-      navigationId: string
-    }
-    latestTakeoverSummary?: NonNullable<NonNullable<BrowserDiagnosticPanelSnapshot['takeover']>['latestSummary']>
   }
 }
 

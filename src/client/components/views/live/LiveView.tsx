@@ -18,14 +18,10 @@ export interface LiveViewProps {
   topLiveRef: React.RefObject<HTMLImageElement | null>
   bottomLiveRef: React.RefObject<HTMLImageElement | null>
   splitContainerRef: React.RefObject<HTMLDivElement | null>
-  imeProxyRef: React.RefObject<HTMLTextAreaElement | null>
-  imeProxyHandlers: Record<string, (event: any) => void>
   dividerProps: {
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
     onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void
   }
-  pointerHandlers: ReturnType<typeof import('../../../hooks/usePointerGestures.ts')['usePointerGestures']>['livePointerHandlers']
-  onWheel: (event: React.WheelEvent<HTMLImageElement>, pane?: BrowserSplitViewPane) => void
   onDragStart: (event: React.DragEvent<HTMLImageElement>) => void
   onDragEnd: () => void
   onFocusPane: (pane: BrowserSplitViewPane) => void
@@ -35,7 +31,6 @@ export interface LiveViewProps {
   onToggleSplitOrientation: () => void
   onSwapSplitPanes: () => void
   onResetSplitRatio: () => void
-  onToggleTakeover: () => void
   onToggleShareDrag: () => void
   onClosePanel: () => void
 }
@@ -53,11 +48,7 @@ export function LiveView({
   topLiveRef,
   bottomLiveRef,
   splitContainerRef,
-  imeProxyRef,
-  imeProxyHandlers,
   dividerProps,
-  pointerHandlers,
-  onWheel,
   onDragStart,
   onDragEnd,
   onFocusPane,
@@ -67,27 +58,14 @@ export function LiveView({
   onToggleSplitOrientation,
   onSwapSplitPanes,
   onResetSplitRatio,
-  onToggleTakeover,
   onToggleShareDrag,
   onClosePanel,
 }: LiveViewProps) {
-  const userTakeover = snapshot.control?.owner === 'user'
-
   const paneSnapshot = (pane: BrowserSplitViewPane) =>
     snapshot.splitView?.panes?.find(item => item.pane === pane)
 
   return (
     <div ref={livePanelRef} className={css.livePanel}>
-      <textarea
-        ref={imeProxyRef}
-        className={css.imeProxy}
-        aria-label="浏览器输入法代理"
-        autoCapitalize="none"
-        autoCorrect="off"
-        spellCheck={false}
-        {...imeProxyHandlers}
-      />
-
       <LiveControls
         snapshot={snapshot}
         splitOrientation={splitOrientation}
@@ -98,7 +76,6 @@ export function LiveView({
         onToggleSplitOrientation={onToggleSplitOrientation}
         onSwapSplitPanes={onSwapSplitPanes}
         onResetSplitRatio={onResetSplitRatio}
-        onToggleTakeover={onToggleTakeover}
         onToggleShareDrag={onToggleShareDrag}
         onClosePanel={onClosePanel}
       />
@@ -120,14 +97,11 @@ export function LiveView({
             orientation={splitOrientation}
             imageRef={topLiveRef}
             canvasRef={topCanvasRef}
-            userTakeover={userTakeover}
             shareDragArmed={shareDragArmed}
             inspect={snapshot.diagnostic?.latestInspect}
             onFocusPane={() => onFocusPane('top')}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            onWheel={e => onWheel(e, 'top')}
-            pointerHandlers={pointerHandlers}
           />
           <SplitDivider
             orientation={splitOrientation}
@@ -141,14 +115,11 @@ export function LiveView({
             orientation={splitOrientation}
             imageRef={bottomLiveRef}
             canvasRef={bottomCanvasRef}
-            userTakeover={userTakeover}
             shareDragArmed={shareDragArmed}
             inspect={snapshot.diagnostic?.latestInspect}
             onFocusPane={() => onFocusPane('bottom')}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            onWheel={e => onWheel(e, 'bottom')}
-            pointerHandlers={pointerHandlers}
           />
         </div>
       ) : (
@@ -162,13 +133,9 @@ export function LiveView({
               src={`data:${snapshot.frame.mediaType};base64,${snapshot.frame.data}`}
               alt="浏览器实况"
               draggable={shareDragArmed}
-              tabIndex={userTakeover ? 0 : -1}
-              data-takeover={userTakeover || undefined}
               data-share-drag={shareDragArmed || undefined}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
-              {...pointerHandlers()}
-              onWheel={onWheel}
             />
           )}
           {snapshot.frame === undefined || snapshot.activeViewId === undefined ? null : (

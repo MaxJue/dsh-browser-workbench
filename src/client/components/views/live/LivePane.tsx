@@ -8,14 +8,11 @@ export interface LivePaneProps {
   orientation: 'top-bottom' | 'left-right'
   imageRef: React.RefObject<HTMLImageElement | null>
   canvasRef: React.RefObject<HTMLDivElement | null>
-  userTakeover: boolean
   shareDragArmed: boolean
   inspect?: BrowserDiagnosticPanelSnapshot['latestInspect']
   onFocusPane: () => void
   onDragStart: (event: React.DragEvent<HTMLImageElement>) => void
   onDragEnd: () => void
-  onWheel: (event: React.WheelEvent<HTMLImageElement>) => void
-  pointerHandlers: ReturnType<typeof import('../../../hooks/usePointerGestures.ts')['usePointerGestures']>['livePointerHandlers']
 }
 
 export function LivePane({
@@ -24,14 +21,11 @@ export function LivePane({
   orientation,
   imageRef,
   canvasRef,
-  userTakeover,
   shareDragArmed,
   inspect,
   onFocusPane,
   onDragStart,
   onDragEnd,
-  onWheel,
-  pointerHandlers,
 }: LivePaneProps) {
   const fullLabel =
     orientation === 'left-right'
@@ -64,13 +58,9 @@ export function LivePane({
             src={`data:${paneState.frame.mediaType};base64,${paneState.frame.data}`}
             alt={`${fullLabel}实况`}
             draggable={shareDragArmed}
-            tabIndex={userTakeover ? 0 : -1}
-            data-takeover={userTakeover || undefined}
             data-share-drag={shareDragArmed || undefined}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
-            {...pointerHandlers(pane)}
-            onWheel={onWheel}
           />
         )}
         {paneState?.frame === undefined || paneState.viewId === undefined ? null : (

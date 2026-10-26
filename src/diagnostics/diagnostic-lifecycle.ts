@@ -38,7 +38,6 @@ export async function diagnosticLifecycleAction(dependencies: DiagnosticLifecycl
       session.diagnosticPanel.latestInspect = undefined
       session.diagnosticPanel.latestComparison = undefined
       session.diagnosticPanel.latestIncident = undefined
-      session.diagnosticPanel.latestTakeoverSummary = undefined
     }
     const debugSession = debugSessions.start({
       sessionKey: session.key,

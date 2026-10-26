@@ -11,12 +11,11 @@ export interface LiveControlsProps {
   onToggleSplitOrientation: () => void
   onSwapSplitPanes: () => void
   onResetSplitRatio: () => void
-  onToggleTakeover: () => void
   onToggleShareDrag: () => void
   onClosePanel: () => void
 }
 
-// 实况控制只服务人：看画面、切显示、双页比对、接管、拖拽分享。agent 向的诊断与
+// 实况控制只服务人：看画面、切显示、双页比对、拖拽分享。agent 向的诊断与
 // 录制操作属于工具能力，不在这里重复。
 export function LiveControls({
   snapshot,
@@ -28,18 +27,14 @@ export function LiveControls({
   onToggleSplitOrientation,
   onSwapSplitPanes,
   onResetSplitRatio,
-  onToggleTakeover,
   onToggleShareDrag,
   onClosePanel,
 }: LiveControlsProps) {
-  const userTakeover = snapshot.control?.owner === 'user'
-
   return (
     <details className={css.liveControls}>
       <summary>实况控制</summary>
       <div className={css.liveControlPanel}>
         <div className={css.liveControlStatus}>
-          <span>{userTakeover ? '人工控制中' : '模型控制中'}</span>
           <span>
             {snapshot.liveView === undefined
               ? '等待画面尺寸'
@@ -120,23 +115,12 @@ export function LiveControls({
           )}
           <button
             type="button"
-            aria-label={userTakeover ? '归还浏览器控制权给模型' : '人工接管浏览器'}
-            title={userTakeover ? '归还浏览器控制权给模型' : '人工接管；接管后点击网页并直接使用键盘'}
-            onClick={onToggleTakeover}
-          >
-            {userTakeover ? '归还模型' : '人工接管'}
-          </button>
-          <button
-            type="button"
-            disabled={!userTakeover}
             aria-pressed={shareDragArmed}
             aria-label={shareDragArmed ? '取消拖拽分享画面' : '武装下一次拖拽分享画面'}
             title={
-              !userTakeover
-                ? '请先人工接管浏览器'
-                : shareDragArmed
-                  ? '下一次从实况画面拖动会生成对话图片附件；拖拽结束后自动关闭'
-                  : '仅武装下一次画面拖拽，普通拖动不会生成附件'
+              shareDragArmed
+                ? '下一次从实况画面拖动会生成对话图片附件；拖拽结束后自动关闭'
+                : '仅武装下一次画面拖拽，普通拖动不会生成附件'
             }
             data-selected={shareDragArmed || undefined}
             onClick={onToggleShareDrag}

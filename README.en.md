@@ -9,10 +9,10 @@ Not just a viewer. It clicks, sets breakpoints, captures requests, resolves Sour
 ![License](https://img.shields.io/badge/license-MIT-2563EB?style=for-the-badge)
 ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2%20%7C%200.2.1--rc.3-7C3AED?style=for-the-badge)
 ![Node](https://img.shields.io/badge/Node-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-16A34A?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-178%20passing-22C55E?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-171%20passing-22C55E?style=for-the-badge)
 ![Status](https://img.shields.io/badge/status-1.0.0--rc8%20%C2%B7%20not%20on%20npm-F97316?style=for-the-badge)
 
-[Install from source](#installation) · [See it work](#what-it-looks-like) · [30 tools](#feature-reference) · [Verification](#verification-results) · [Technical details](./TECHNICAL.en.md) <br> <br>
+[Install from source](#installation) · [See it work](#what-it-looks-like) · [29 tools](#feature-reference) · [Verification](#verification-results) · [Technical details](./TECHNICAL.en.md) <br> <br>
 English | [简体中文](./README.md)
 
 </div>
@@ -34,7 +34,7 @@ English | [简体中文](./README.md)
 | Target host | DSH `0.2.1-rc.2` / `0.2.1-rc.3`, declared as the peer range `^0.2.1-rc.2 \|\| ^0.2.1-rc.3`; Cordis `~4.0.5`, Schemastery `~3.18.5` |
 | npm status | **Not published.** The first release has not been made; installing from npm does not work yet |
 | Repository contents | Source, tests, docs; **no** `lib/` build output, no `node_modules`, `.sandbox`, or `.npm-cache` |
-| Verified | Strict typecheck, 178 unit tests, production build, 30-tool regression against real Chromium, layered verification in a separate process with its own `DSH_HOME` |
+| Verified | Strict typecheck, 171 unit tests, production build, 29-tool regression against real Chromium, layered verification in a separate process with its own `DSH_HOME` |
 | Still pending | Rewriting the panel and RPC e2e scripts for the new UI; manual install/launch/auth/uninstall acceptance on a brand-new DSH Web profile; first npm release |
 | Not claimed | DSH `0.1.x` hosts, macOS/Linux hardware, third-party browser plugins |
 
@@ -42,7 +42,7 @@ English | [简体中文](./README.md)
 
 Front-end debugging hurts because you cannot see the page structure, cannot see the request details, cannot get a breakpoint to land, and the error is one line of text. Agents have it worse on a complex page: they can take a screenshot, describe it, and then get stuck in a loop of "try reloading" and "try clearing the cache".
 
-BrowserWorkbench puts a working browser in the DSH Web sidebar and ships 30 purpose-built automation tools. The panel is deliberately thin: a tab strip, an address bar (back / forward / reload), the real page live, and human takeover. Eight former views — Console, Network, Debugger, Performance, Emulation, Diagnostics, Provider, and Extensions — are gone from the panel, because those capabilities belong to the agent: they are all served by the `browser_*` tools (`browser_console_messages`, `browser_network_requests`, `browser_debugger`, `browser_profile`, `browser_diagnose`, `browser_emulate`, and friends) instead of a hand-built UI clone. The agent reads page structure, drives elements, reads the Console, traces requests, sets breakpoints, walks call stacks, resolves Source Maps, profiles performance, and records the full scene before and after an operation.
+BrowserWorkbench puts a working browser in the DSH Web sidebar and ships 29 purpose-built automation tools. The panel is deliberately thin: a tab strip, an address bar (back / forward / reload), and the real page live. Eight former views — Console, Network, Debugger, Performance, Emulation, Diagnostics, Provider, and Extensions — are gone from the panel, because those capabilities belong to the agent: they are all served by the `browser_*` tools (`browser_console_messages`, `browser_network_requests`, `browser_debugger`, `browser_profile`, `browser_diagnose`, `browser_emulate`, and friends) instead of a hand-built UI clone. The agent reads page structure, drives elements, reads the Console, traces requests, sets breakpoints, walks call stacks, resolves Source Maps, profiles performance, and records the full scene before and after an operation.
 
 **The entry point is the Start page of the right sidebar**: the plugin registers a `guide` entry with `sidebarRightTabs`, so the sidebar's Start (开始) page shows a card titled 浏览器实况 ("browser live view") with the description 查看并接管 Agent 正在操作的浏览器 ("watch and take over the browser the agent is driving"); click it to open the panel. **The composer carries no browser binding control anymore** — `BrowserControl`, `ControllerMenu`, `ArbitratedToolsDialog`, and the auto-reveal behaviour are gone; binding lives in Settings only.
 
@@ -79,7 +79,7 @@ The agent conversation, the real page, the tab strip, and the address bar all li
 
 ### Two live pages, watched together
 
-The panel shows two real pages stacked or side by side, with separate frames and separate focus, driven by `browser_split_view`: stacked for responsive checks, side by side for cross-page comparison. Both pages share the same panel shell, and frames, address bar, and takeover follow each page.
+The panel shows two real pages stacked or side by side, with separate frames and separate focus, driven by `browser_split_view`: stacked for responsive checks, side by side for cross-page comparison. Both pages share the same panel shell, and frames and address bar follow each page.
 
 ### Bind in Settings, one global choice
 
@@ -218,20 +218,14 @@ Upgrading from the historical `dsh-browser-tools` package? Remove the old packag
 | Save large artifacts | Store traces, CPU profiles, coverage, and heaps as artifacts with their sizes | `browser_profile` |
 | Generate an Incident report | Summarize inline as markdown, truncated by the output budget (not written to disk) | `browser_diagnose` |
 
-### Live view and human takeover
+### Live view
 
 | Capability | Description | Tools |
 | --- | --- | --- |
-| Live view | Watch the current page in the sidebar | `browser_live_view` |
-| Adaptive sizing | Page follows the panel size so input coordinates stay correct | `browser_live_view`, `browser_emulate` |
-| Stacked split | Watch two pages at once | `browser_split_view` |
-| Side-by-side split | Place two pages horizontally | `browser_split_view` |
-| Human clicks | Operate the page with the mouse directly | `browser_takeover` |
-| Human typing | Type text and shortcuts with the keyboard | `browser_takeover` |
-| CJK input | Chinese input works without splitting into wrong keys | `browser_takeover` |
-| Paste | Uses the final paste event, never clipboard history | `browser_takeover` |
-| Takeover | Take control temporarily, then hand it back to the agent | `browser_takeover` |
-| Stale input guard | Rejects outdated coordinates after the viewport generation changes (frame sequence travels with the request but is not compared) | `browser_takeover` |
+| Live view | Watch the current page in the sidebar | rowser_live_view |
+| Adaptive sizing | Page follows the panel size so viewport stays correct | rowser_live_view, rowser_emulate |
+| Stacked split | Watch two pages at once | rowser_split_view |
+| Side-by-side split | Place two pages horizontally | rowser_split_view |
 
 ### Extensions and browser environment
 
@@ -248,11 +242,11 @@ Upgrading from the historical `dsh-browser-tools` package? Remove the old packag
 
 | Capability | Description |
 | --- | --- |
-| Global registration (default) | `toolRegistrationMode: global`: the 30 tools are registered profile-wide, so every new session can use them without a first-use pick |
+| Global registration (default) | `toolRegistrationMode: global`: the 29 tools are registered profile-wide, so every new session can use them without a first-use pick |
 | Safe downgrade | If global mode starts while tools with the `browser_` prefix already exist, it falls back to per-session choice |
 | Per-session choice (optional) | `session-select` remains in the implementation, but the settings page no longer offers it — tests and legacy configs only. Under it, a formal session picks BrowserWorkbench or another browser toolset before its first browser use |
 | Session lock | Under `session-select`, the browser plugin cannot change within a session; start a new session to switch |
-| On-demand registration | Under `session-select`, selecting BrowserWorkbench registers the 30 tools for that session only |
+| On-demand registration | Under `session-select`, selecting BrowserWorkbench registers the 29 tools for that session only |
 | Release resources | Drops the browser connection and clears that session's views and debug state; the session lock remains |
 | Restart recovery | The saved choice is restored after a DSH restart or agent-scope replacement |
 | Automatic launch | With `providerMode: auto` (default), the first browser tool call in a session launches that session's dedicated Chromium; no manual connect step |
@@ -262,7 +256,7 @@ Upgrading from the historical `dsh-browser-tools` package? Remove the old packag
 | Shared site state | Only when several sessions attach to the same external browser: cookies, LocalStorage, IndexedDB, Cache Storage, HTTP cache, Service Worker, and permissions are shared by that browser |
 | Shared browser tabs | Only with `external-cdp` on the same endpoint: several sessions see the same tabs, and the plugin does not split or copy tabs per session |
 | Isolated debug state | Debugger, request interception, refs, snapshots, and live frames are stored per session |
-| Isolated files | Artifacts, takeover, and controller state are per-session |
+| Isolated files | Artifacts and controller state are per-session |
 | Page provenance | Only active in managed `shared-persistent` mode: `window.open()` pages inherit the owner and pages with unknown provenance are closed (that mode is unreachable from the tool surface) |
 | Layout restore | After a browser context is rebuilt, each session's URL, active tab, and split layout are restored |
 
@@ -270,15 +264,14 @@ Upgrading from the historical `dsh-browser-tools` package? Remove the old packag
 
 ```
 src/
-├── application/   tool definitions (30 browser_* tools), config schema, safety policy, metadata
+├── application/   tool definitions (29 browser_* tools), config schema, safety policy, metadata
 ├── cdp/           CDP sessions and protocol-level events (debugger / fetch / screencast / profile / script)
-├── client/        React 19 UI: live panel (tabs, address bar, live view, takeover) and the Settings → 浏览器 section
+├── client/        React 19 UI: live panel (tabs, address bar, live view) and the Settings → 浏览器 section
 ├── compat/        DSH Connection/RPC adapter, message and RPC dispatch
 ├── controller/    session-level controller arbitration (browser-controller)
 ├── diagnostics/   forensics: flight recorder, context/build identity, incidents, Source Maps
 ├── domain/        pure protocol contracts: types, protocol, errors, policy
 ├── extensions/    CRX3 unpacking, extension registry, extension popups
-├── input/         human takeover, keyboard/mouse/pointer gestures, input observation
 ├── page/          navigation, network recording and interception, dialogs, page diagnostics
 ├── provider/      external CDP connection, managed launch config, persistent profile, artifact store
 ├── runtime/       orchestration layer (every file stays in the hundreds of lines)
@@ -289,7 +282,7 @@ tests/             covers 13 domains (compat has no dedicated test dir yet)
 scripts/verify/    e2e verification scripts and local fixture site
 ```
 
-Source size: `src/` is 139 files and roughly 16.3k non-empty lines; `tests/` is 57 files and 178 cases. Architecture constraints live in [AGENTS.md](./AGENTS.md) and [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md).
+Source size: `src/` is 139 files and roughly 16.3k non-empty lines; `tests/` is 55 files and 171 cases. Architecture constraints live in [AGENTS.md](./AGENTS.md) and [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md).
 
 ## Development and verification
 
@@ -297,19 +290,19 @@ Three static gates must pass before a commit:
 
 ```powershell
 npm run typecheck    # tsc --noEmit, 0 errors
-npm test             # all 178 unit tests pass
+npm test             # all 171 unit tests pass
 npm run build        # tsdown, produces lib/index.mjs and lib/client.js
 ```
 
 When you need a real browser, run the relevant layer on demand (**nothing downloads Chromium implicitly**; supply a ready browser and the local fixture site yourself):
 
 ```powershell
-npm run verify:tools       # runtime layer: 145 assertions over the 30 browser_* tools (real Chrome + fixture site)
+npm run verify:tools       # runtime layer: 140 assertions over the 29 browser_* tools (real Chrome + fixture site)
 npm run verify:extensions  # extension layer: MV3 local install, registry persistence, start/stop/uninstall, popup, bad input (19)
 npm run verify:managed     # managed layer: executablePath/headless, three proxy modes, HTTPS CONNECT, offline install (16)
 npm run verify:sandbox     # boot a separate DSH_HOME instance and print the tokenised URL
 npm run verify:instance    # instance layer: client bundle, auth RPC round trip (10)
-npm run verify:panel       # panel layer: formal session -> settings binding -> live view -> takeover (script still asserts the old composer menu and nine views; rewrite in progress)
+npm run verify:panel       # panel layer: formal session -> settings binding -> live view (script still asserts the old composer menu and nine views; rewrite in progress)
 npm run verify:config      # config layer: real runtime effect of 13 options
 npm run verify:rpc         # RPC/persistence layer: auth boundary, envelope contract, controller choice across reloads (16; some assertions still target the old UI, rewrite in progress)
 npm run verify:persist -- --phase=prepare   # claim the controller and record a marker
@@ -322,7 +315,7 @@ npm run verify:persist -- --phase=verify    # re-check after a host restart (nee
 
 | Layer | Entry point | Result |
 | --- | --- | --- |
-| Static gates | `typecheck` / `test` / `build` | 0 errors / 178 passing / build clean |
+| Static gates | `typecheck` / `test` / `build` | 0 errors / 171 passing / build clean |
 | Runtime | `verify:tools` | 145/145 |
 | Instance | `verify:instance` | 10/10 |
 | Real UI panel | `verify:panel` | rewrite pending (old nine-view assertions no longer valid) |
