@@ -34,7 +34,7 @@ English | [简体中文](./README.md)
 | Target host | DSH `0.2.1-rc.2` / `0.2.1-rc.3`, declared as the peer range `^0.2.1-rc.2 \|\| ^0.2.1-rc.3`; Cordis `~4.0.5`, Schemastery `~3.18.5` |
 | npm status | **Not published.** The first release has not been made; installing from npm does not work yet |
 | Repository contents | Source, tests, docs; **no** `lib/` build output, no `node_modules`, `.sandbox`, or `.npm-cache` |
-| Verified | Strict typecheck, 170 unit tests, production build, 30-tool regression against real Chromium, seven-layer verification in a separate process with its own `DSH_HOME` |
+| Verified | Strict typecheck, 170 unit tests, production build, 30-tool regression against real Chromium, layered verification in a separate process with its own `DSH_HOME` |
 | Still pending | Manual install/launch/auth/uninstall acceptance on a brand-new DSH Web profile; first npm release |
 | Not claimed | DSH `0.1.x` hosts, macOS/Linux hardware, third-party browser plugins |
 
@@ -85,7 +85,7 @@ Releasing BrowserWorkbench resources drops the CDP connection and clears that se
 
 ![Debugger with the real script list and Source Maps](./assets/browser-workbench-debugger.png)
 
-Webpack squeezed the code into a single line? Fine. Connect the CDP debugger and the script list shows the bundles the page actually loaded; every script hands back its source and Source Map as JSON. Breakpoints, stepping, call stacks, and scope stay where they belong.
+Webpack squeezed the code into a single line? Fine. Connect the CDP debugger and the script list shows the bundles the page actually loaded: `script_source` returns the runtime source, and scripts that declare a `sourceMappingURL` also yield their `.map` (saved as an artifact and returned by reference; scripts without one fail with `SOURCE_MAP_NOT_DECLARED`). Breakpoints, stepping, call stacks, and scope stay where they belong.
 
 ### Request ordering, made obvious
 
@@ -107,7 +107,7 @@ A debug session bundles page identity, the action timeline, context topology, an
 
 ![Checkpoint, compare, incident, and takeover summaries](./assets/browser-workbench-diagnose-2.png)
 
-Take a checkpoint before and after an operation: compare first decides whether the two scenes are comparable (viewId, context generation, URL, viewport, DPR), then reports `fixed` / `improved` / `unchanged` / `regressed` / `incomparable` / `evidence-insufficient` from four signal groups — page overflow, element hit-testing and visibility, Console error count, and Network request count. Dimensions without evidence are labelled as such instead of guessed.
+Take a checkpoint before and after an operation: compare first decides whether the two scenes are comparable (viewId, context generation, URL, viewport, DPR), then reports `fixed` / `improved` / `unchanged` / `regressed` / `incomparable` / `evidence-insufficient` from four signal groups — page overflow, element hit-testing and visibility, Console event count (all levels), and failed-request count (`failure` or 4xx/5xx). Dimensions without evidence are labelled as such instead of guessed.
 
 ### Performance problems have nowhere to hide
 
@@ -127,7 +127,7 @@ The repository does not ship `lib/`, so build first:
 git clone https://github.com/MaxJue/dsh-browser-workbench.git
 cd dsh-browser-workbench
 pnpm install --frozen-lockfile --ignore-scripts
-npm run build        # produces lib/index.mjs, lib/index.d.mts, lib/client.js
+npm run build        # produces lib/index.mjs, lib/index.d.mts, lib/client.js and its source map
 ```
 
 Pack it and add it to the profile:
@@ -192,7 +192,7 @@ Upgrading from the historical `dsh-browser-tools` package? Remove the old packag
 | Scripts | Loaded scripts and runtime source | `browser_debugger` |
 | Get Source Maps | Download and store a script's `.map` and bind its build identity | `browser_debugger` |
 | Restore source positions | In a diagnostic report, map stacked Console errors back to original file, line, and column | `browser_diagnose` |
-| Build identity | Record script content and build identity so you never read the wrong version | `browser_diagnose` |
+| Build identity | Record each script's SHA-256 hash and build identity so you never read the wrong version | `browser_diagnose` |
 | Execution contexts | Separate main world, isolated world, and paused frame | `browser_debugger`, `browser_diagnose` |
 
 ### Performance and diagnostics
@@ -209,7 +209,7 @@ Upgrading from the historical `dsh-browser-tools` package? Remove the old packag
 | Checkpoints | Capture page and identity state before and after an operation | `browser_diagnose` |
 | Compare | Diff two checkpoints and flag changes and regressions | `browser_diagnose` |
 | Incidents | Aggregate actions, Console, requests, identity, and compare results | `browser_diagnose` |
-| Key event recording | Off / Rolling / Deep, degrading to metadata-only when the event budget is exceeded | `browser_diagnose` |
+| Key event recording | Off / Rolling / Deep; when the quota is exceeded the oldest unfrozen chunks are evicted and `overload` is flagged metadata-only | `browser_diagnose` |
 | Save large artifacts | Store traces, CPU profiles, coverage, and heaps as artifacts with their sizes | `browser_profile` |
 | Generate an Incident report | Summarize inline as markdown, truncated by the output budget (not written to disk) | `browser_diagnose` |
 
@@ -226,7 +226,7 @@ Upgrading from the historical `dsh-browser-tools` package? Remove the old packag
 | CJK input | Chinese input works without splitting into wrong keys | `browser_takeover` |
 | Paste | Uses the final paste event, never clipboard history | `browser_takeover` |
 | Takeover | Take control temporarily, then hand it back to the agent | `browser_takeover` |
-| Stale input guard | Rejects outdated coordinates after size or frame changes | `browser_takeover` |
+| Stale input guard | Rejects outdated coordinates after the viewport generation changes (frame sequence travels with the request but is not compared) | `browser_takeover` |
 
 ### Extensions and browser environment
 
@@ -267,7 +267,7 @@ src/
 ├── application/   tool definitions (30 browser_* tools), config schema, safety policy, metadata
 ├── cdp/           CDP sessions and protocol-level events (debugger / fetch / screencast / profile / script)
 ├── client/        React 19 panel UI: components, hooks, utils, panel-controller
-├── compat/        DSH version compatibility layer, message and RPC dispatch
+├── compat/        DSH Connection/RPC adapter, message and RPC dispatch
 ├── controller/    session-level controller arbitration (browser-controller)
 ├── diagnostics/   forensics: flight recorder, context/build identity, incidents, Source Maps
 ├── domain/        pure protocol contracts: types, protocol, errors, policy
@@ -279,11 +279,11 @@ src/
 ├── session/       session keys, exclusive task queue, tab restoration
 └── view/          viewports, adaptive reflow, split view, screencast sync
 
-tests/             mirrors src/ one to one
+tests/             covers 12 domains (no dedicated test dirs for compat or controller yet)
 scripts/verify/    e2e verification scripts and local fixture site
 ```
 
-Source size: `src/` is 138 files and roughly 16.3k lines; `tests/` is 55 files and 170 cases. Architecture constraints live in [AGENTS.md](./AGENTS.md) and [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md).
+Source size: `src/` is 138 files and roughly 16.3k non-empty lines; `tests/` is 55 files and 170 cases. Architecture constraints live in [AGENTS.md](./AGENTS.md) and [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md).
 
 ## Development and verification
 
@@ -310,7 +310,7 @@ npm run verify:persist -- --phase=prepare   # claim the controller and record a 
 npm run verify:persist -- --phase=verify    # re-check after a host restart (needs a fresh token)
 ```
 
-The full seven-layer record, the 7 real defects fixed this round, and the unreachable paths are documented in [VALIDATION.en.md](./VALIDATION.en.md) sections 14 and 15.
+The full layered verification record, the 7 real defects fixed this round, and the unreachable paths are documented in [VALIDATION.en.md](./VALIDATION.en.md) sections 14 and 15.
 
 ### Verification results
 
@@ -332,10 +332,10 @@ The runtime layer uses real Chrome (`155.0.8059.85`) connected over `external-cd
 
 These are real behaviours intentionally kept in this version, not TODOs:
 
-- **Managed launch is not on the tool surface**: `browser_provider` only accepts `external-cdp`, so the only `providerBinding` the tool surface can write is `external-cdp` (returning to `disconnected` on release). The `shared-persistent`, `isolated-managed`, and `isolated-persistent` bindings exist in the interface but are only reachable through managed launch. Managed settings such as `executablePath`, `headless`, and proxies only take effect in protected runtime methods and are exercised by `verify:managed`.
+- **Managed launch is not on the tool surface**: `browser_provider` only accepts `external-cdp`, so the only `providerBinding` the tool surface can write is `external-cdp` (returning to `disconnected` on release). Two other bindings are written by the managed launch path and are unreachable from the tool surface: `shared-persistent` (the branch that tracks `window.open` page ownership) and `isolated-persistent`; `isolated-managed` currently exists only as a type declaration with no assignment site. Managed settings such as `executablePath`, `headless`, and proxies only take effect in protected runtime methods and are exercised by `verify:managed`.
 - **Managed download metadata lags**: `KNOWN_ARCHIVES` in `src/provider/chromium-manager.ts` only lists `149.0.7827.55`, while playwright-core 1.64.1 expects `156.0.8078.4`; with missing metadata the download fails closed. That is a deliberate integrity policy, not a bug.
 - **`browser_live_view adaptive` needs the panel**: without an open panel there is no size report, so the call returns the recoverable `ADAPTIVE_SIZE_UNAVAILABLE`.
-- **Extension tools are read-only**: `browser_extensions` only offers the `list` action and reads a historical registry snapshot; the panel RPCs do expose install and start/stop, but the agent has no tool for them, so installing extensions means operating the connected browser directly.
+- **Extension tools are read-only**: on the agent side `browser_extensions` exposes only the `list` action and reads a historical registry snapshot; there is no install or start/stop tool. The panel RPCs also accept `install` / `enable` / `disable` / `uninstall` / `apply` plus `open_popup` / `close_popup`, but in external CDP mode they only change the persisted registry (`uninstall` also deletes the unpacked directory) and mark entries as pending restart (`loaded:false`); nothing is loaded into the user's connected browser. Only the managed path where the plugin launches Chromium itself actually loads them. Installing extensions therefore still means operating the connected browser directly.
 - **`subagentInteractive` defaults to `false`**: delegated sub-sessions are rejected when they call interactive tools such as navigation, clicking, or dialogs. The restriction assumes the tool is either registered globally by this plugin or owned by an active session controller; under the default per-session mode a sub-session never receives these tools at all, so the rejection is only observable in `global` mode.
 - **Out of scope**: DRM, Native Messaging, Manifest V2, CAPTCHA/verification challenges, Passkey/WebAuthn, anti-automation policies on arbitrary sites, and the business correctness of the app under test.
 

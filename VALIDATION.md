@@ -412,7 +412,7 @@ Host 侧插件与 harness 同进程加载：插件在 `apply()` 里同步抛错�
 
 | 层级 | 入口 | 覆盖 | 结果 |
 | --- | --- | --- | --- |
-| 静态门禁 | `npm run typecheck` / `npm test` / `npm run build` | 类型、单测、`lib/index.mjs` + `lib/client.js` | 0 错误 / 166 通过 / 构建成功 |
+| 静态门禁 | `npm run typecheck` / `npm test` / `npm run build` | 类型、单测、`lib/index.mjs` + `lib/client.js` | 0 错误 / 166 通过（2026-10-26 复跑 170 通过）/ 构建成功 |
 | Runtime 层 | `npm run verify:tools` | 30 个 `browser_*` 工具的 145 项断言（含负例） | 145/145 通过 |
 | 实例层 | `npm run verify:instance` | 沙箱实例加载 Client bundle、composer 槽位、认证 RPC 往返、console 洁净、截图 | 10/10 通过 |
 | 真实 UI 面板层 | `npm run verify:panel` | 沙箱实例里发消息形成正式 Session → 控制器菜单激活 → 面板 9 视图 + Provider 连接 + 实况帧/自适应 + 面板内人工接管与真实键鼠输入 | 33/33 通过 |

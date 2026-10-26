@@ -34,7 +34,7 @@
 | 目标宿主 | DSH `0.2.1-rc.2` / `0.2.1-rc.3`（peer 声明为范围 `^0.2.1-rc.2 \|\| ^0.2.1-rc.3`），Cordis `~4.0.5`，Schemastery `~3.18.5` |
 | npm 状态 | **未发布**。首次发布流程尚未执行，npm 安装方式目前不可用 |
 | 仓库内容 | 源码 + 测试 + 文档；**不含** `lib/` 构建产物，也不含 `node_modules`、`.sandbox`、`.npm-cache` |
-| 已实测通过 | 严格类型检查、170 个单测、正式构建、30 工具真实 Chromium 回归、独立进程 + 独立 `DSH_HOME` 的七层验证 |
+| 已实测通过 | 严格类型检查、170 个单测、正式构建、30 工具真实 Chromium 回归、独立进程 + 独立 `DSH_HOME` 的分层验证 |
 | 待完成 | 全新 DSH Web Profile 的安装/启动/认证/卸载人工验收；npm 首次发布 |
 | 未声明兼容 | DSH `0.1.x`(RC7 及更早)、macOS / Linux 实机、任意第三方浏览器插件 |
 
@@ -85,7 +85,7 @@ Agent 对话、真实页面、标签栏、地址栏和调试结果全在 DSH 右
 
 ![Debugger、脚本列表与 Source Map](./assets/browser-workbench-debugger.png)
 
-代码被 Webpack 压缩成一行？没关系。连上 CDP Debugger，脚本列表直接列出页面真实加载的 bundle，每个脚本都能直接取到源码与 Source Map（以 JSON 返回）；断点、单步、调用栈和变量作用域都在原位。
+代码被 Webpack 压缩成一行？没关系。连上 CDP Debugger，脚本列表直接列出页面真实加载的 bundle：`script_source` 返回运行时源码，声明了 `sourceMappingURL` 的脚本还能取回 `.map`（保存为制品并返回引用，未声明的脚本会明确报 `SOURCE_MAP_NOT_DECLARED`）。断点、单步、调用栈和变量作用域都在原位。
 
 ### 请求时序，一清二楚
 
@@ -107,7 +107,7 @@ Debug Session 把页面身份、操作时间线、Context Topology 和 Build Ide
 
 ![Checkpoint、Compare、Incident 与 Takeover 摘要](./assets/browser-workbench-diagnose-2.png)
 
-操作前后各存一个 Checkpoint：Compare 先判断两次现场是否可比（viewId、context generation、URL、viewport、DPR），再按页面溢出、元素命中与可见性、Console 错误数、Network 请求数四路信号给出 `fixed` / `improved` / `unchanged` / `regressed` / `incomparable` / `evidence-insufficient`，缺证据的维度会明确标注而不是猜。
+操作前后各存一个 Checkpoint：Compare 先判断两次现场是否可比（viewId、context generation、URL、viewport、DPR），再按页面溢出、元素命中与可见性、Console 事件数（全部 level）、失败请求数（`failure` 或 4xx/5xx）四路信号给出 `fixed` / `improved` / `unchanged` / `regressed` / `incomparable` / `evidence-insufficient`，缺证据的维度会明确标注而不是猜。
 
 ### 性能问题，无处藏身
 
@@ -127,7 +127,7 @@ CPU 飙高？内存泄漏？用 Trace 看主线程阻塞，用 CPU Profile 找�
 git clone https://github.com/MaxJue/dsh-browser-workbench.git
 cd dsh-browser-workbench
 pnpm install --frozen-lockfile --ignore-scripts
-npm run build        # 产出 lib/index.mjs、lib/index.d.mts、lib/client.js
+npm run build        # 产出 lib/index.mjs、lib/index.d.mts、lib/client.js 及其 sourcemap
 ```
 
 打包并装进 Profile：
@@ -192,7 +192,7 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 | 读取脚本 | 查看页面加载的脚本和运行时源码 | `browser_debugger` |
 | 获取 Source Map | 下载并保存脚本的 `.map`，同时绑定构建身份 | `browser_debugger` |
 | 还原源码位置 | 在诊断报告里把带 stack 的 Console 错误映射回原始文件与行列 | `browser_diagnose` |
-| 识别构建版本 | 记录脚本内容和构建身份，避免读错版本 | `browser_diagnose` |
+| 识别构建版本 | 记录脚本的 SHA-256 哈希和构建身份，避免读错版本 | `browser_diagnose` |
 | 区分执行环境 | 区分主世界、隔离世界和暂停帧 | `browser_debugger`, `browser_diagnose` |
 
 ### 性能与诊断
@@ -209,7 +209,7 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 | 保存 Checkpoint | 记录操作前后的页面和身份状态 | `browser_diagnose` |
 | 对比变化 | 比较两个 Checkpoint，标出变化和回退 | `browser_diagnose` |
 | 生成 Incident | 汇总动作、Console、请求、身份和对比结果 | `browser_diagnose` |
-| 记录关键事件 | 按 Off / Rolling / Deep 三档记录，事件超量时降级为 metadata-only | `browser_diagnose` |
+| 记录关键事件 | 按 Off / Rolling / Deep 三档记录；超出配额时淘汰最旧的未冻结分片，并把 overload 标为 metadata-only | `browser_diagnose` |
 | 保存大文件 | 把 Trace、CPU Profile、Coverage 和 Heap 存成制品并标注大小 | `browser_profile` |
 | 生成 Incident 报告 | 汇总后内联返回 markdown，受输出上限截断（不落盘） | `browser_diagnose` |
 
@@ -226,7 +226,7 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 | 中文输入 | 正常输入中文，不会拆成错误按键 | `browser_takeover` |
 | 粘贴内容 | 使用最终粘贴事件，不读取剪贴板历史 | `browser_takeover` |
 | 人工接管 | 暂时接管页面，完成后把控制权还给 Agent | `browser_takeover` |
-| 防止旧输入 | 页面尺寸或画面变化后，拒绝过期坐标输入 | `browser_takeover` |
+| 防止旧输入 | 视口生成号变化后拒绝过期坐标输入（帧序号只随请求携带，不单独校验） | `browser_takeover` |
 
 ### 扩展与浏览器环境
 
@@ -267,7 +267,7 @@ src/
 ├── application/   工具定义（30 个 browser_*）、配置 schema、安全策略、工具元数据
 ├── cdp/           CDP 会话与协议级事件（debugger / fetch / screencast / profile / script）
 ├── client/        React 19 面板 UI：components、hooks、utils、panel-controller
-├── compat/        DSH 版本兼容层、消息与 RPC 分发
+├── compat/        DSH Connection/RPC 适配层、消息与 RPC 分发
 ├── controller/    Session 级控制器仲裁（browser-controller）
 ├── diagnostics/   取证：Flight Recorder、Context/Build Identity、Incident、Source Map
 ├── domain/        纯协议契约：types、protocol、errors、policy
@@ -279,11 +279,11 @@ src/
 ├── session/       Session Key、独占任务队列、标签恢复
 └── view/          Viewport、自适应重排、分屏、screencast 同步
 
-tests/             与 src/ 结构一一对应
+tests/             覆盖 12 个领域（compat、controller 暂无独立测试目录）
 scripts/verify/    e2e 验证脚本与本地夹具站点
 ```
 
-源码规模：`src/` 138 个文件约 1.63 万行；`tests/` 55 个文件、170 个用例。Architecture 约束见 [AGENTS.md](./AGENTS.md) 与 [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md)。
+源码规模：`src/` 138 个文件约 1.63 万行（不计空行）；`tests/` 55 个文件、170 个用例。Architecture 约束见 [AGENTS.md](./AGENTS.md) 与 [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md)。
 
 ## 开发与验证
 
@@ -304,13 +304,13 @@ npm run verify:managed     # 托管层：executablePath/headless、三种代理�
 npm run verify:sandbox     # 起独立 DSH_HOME 实例，打印带 token 的地址
 npm run verify:instance    # 实例层：Client bundle、composer 控件、认证 RPC 往返（10 项）
 npm run verify:panel       # 面板层：正式 Session → 控制器激活 → 9 视图 → Provider → 实况 → 人工接管（33 项）
-npm run verify:config      # 配置层：13 项配置的运行时时真实效果
+npm run verify:config      # 配置层：13 项配置的运行时真实效果
 npm run verify:rpc         # RPC/持久化层：认证边界、信封契约、控制器选择跨刷新（16 项）
 npm run verify:persist -- --phase=prepare   # 认领控制器并记录 marker
 npm run verify:persist -- --phase=verify    # 重启 Host 后复核（需要新的 token）
 ```
 
-七层验证的完整记录、本轮修掉的 7 个真实缺陷，以及不可达路径的说明，见 [VALIDATION.md](./VALIDATION.md) 第十四、十五节。
+各层验证的完整记录、本轮修掉的 7 个真实缺陷，以及不可达路径的说明，见 [VALIDATION.md](./VALIDATION.md) 第十四、十五节。
 
 ### 验证结果
 
@@ -335,7 +335,7 @@ Runtime 层使用真实 Chrome（`155.0.8059.85`）经 `external-cdp` 连接本�
 - **托管启动不在工具面暴露**：`browser_provider` 只接受 `external-cdp`，工具面能写出的 `providerBinding` 只有 `external-cdp` 一种（断开时回到 `disconnected`）。接口里另有 `shared-persistent`（`window.open` 页面归属跟踪所在的分支）与 `isolated-persistent` 两种绑定，由托管启动路径写入，工具面不可达；`isolated-managed` 目前只有类型声明，没有赋值点。`executablePath`、`headless`、代理等托管配置只在 runtime 受保护方法和 `verify:managed` 中生效并验证。
 - **托管下载元数据落后**：`src/provider/chromium-manager.ts` 的 `KNOWN_ARCHIVES` 只登记了 `149.0.7827.55`，而 playwright-core 1.64.1 期望 `156.0.8078.4`，缺元数据时会 fail-closed 拒绝下载。这是刻意的完整性策略，不是 bug。
 - **`browser_live_view adaptive` 依赖面板**：面板没打开时没有可用尺寸上报，返回可恢复的 `ADAPTIVE_SIZE_UNAVAILABLE`。
-- **扩展工具只读**：`browser_extensions` 只有 `list` 一种 action，读的是历史注册表快照；面板 RPC 另有安装与启停入口，Agent 侧没有对应工具，装扩展需要直接操作已连接的浏览器。
+- **扩展工具只读**：Agent 侧 `browser_extensions` 只有 `list` 一种 action，读的是历史注册表快照，没有安装或启停工具。面板 RPC 另有 `install`/`enable`/`disable`/`uninstall`/`apply` 与 `open_popup`/`close_popup` 入口，但外部 CDP 模式下它们只改动持久化注册表（`uninstall` 额外删除解包目录），并把条目记为待重启（`loaded:false`），不会装载进用户已连接的浏览器；只有插件自行启动 Chromium 的托管路径才会真正加载。装扩展仍需直接操作已连接的浏览器。
 - **`subagentInteractive` 默认 `false`**：委派子会话调用导航、点击、对话框等交互类工具会被拒绝。这条限制以「该工具由本插件在全局模式注册，或该 Session 的控制器已激活」为前提；默认的按 Session 模式下子会话本身拿不到这些工具，所以实际只在 `global` 模式下可观察。
 - **不覆盖的范围**：DRM、Native Messaging、Manifest V2、CAPTCHA/验证码、Passkey/WebAuthn、任意站点的反自动化策略，以及被调试应用自身的业务正确性。
 

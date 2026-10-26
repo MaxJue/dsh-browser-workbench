@@ -136,7 +136,7 @@ The sandbox mounts the working tree through `link:`, so a rebuild plus restart r
 
 | Layer | Entry | Coverage | Result |
 | --- | --- | --- | --- |
-| Static gates | `npm run typecheck` / `npm test` / `npm run build` | types, 166 unit tests, `lib/index.mjs` + `lib/client.js` | 0 errors / 166 passed / clean build |
+| Static gates | `npm run typecheck` / `npm test` / `npm run build` | types, 166 unit tests, `lib/index.mjs` + `lib/client.js` | 0 errors / 166 passed (170 on the 2026-10-26 re-run) / clean build |
 | Runtime | `npm run verify:tools` | 145 assertions over all 30 `browser_*` tools, including negative paths | 145/145 passed |
 | Instance | `npm run verify:instance` | client bundle loaded in the sandbox instance, composer control, authenticated RPC round trip, clean console, screenshot | 10/10 passed |
 | Real UI panel | `npm run verify:panel` | send a message to reach a formal session, activate through the controller menu, then 9 panel views + Provider connect + live frames/adaptive sizing + in-panel human takeover with real mouse and keyboard input | 33/33 passed |
