@@ -10,7 +10,7 @@ This is a Release Candidate and does not follow a stable-release compatibility c
 
 ## Reporting Regular Issues
 
-Report general bugs, compatibility problems, and feature requests through [GitHub Issues](https://github.com/HakureiMonika/dsh-browser-workbench/issues).
+Report general bugs, compatibility problems, and feature requests through [GitHub Issues](https://github.com/MaxJue/dsh-browser-workbench/issues).
 
 Please include:
 

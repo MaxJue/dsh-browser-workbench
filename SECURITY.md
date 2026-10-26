@@ -10,7 +10,7 @@
 
 ## 报告普通问题
 
-普通缺陷、兼容问题和功能建议提交到 [GitHub Issues](https://github.com/HakureiMonika/dsh-browser-workbench/issues)。
+普通缺陷、兼容问题和功能建议提交到 [GitHub Issues](https://github.com/MaxJue/dsh-browser-workbench/issues)。
 
 提交时提供：
 

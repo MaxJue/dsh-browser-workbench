@@ -11,13 +11,13 @@
     "debugging",
     "agent"
   ],
-  "homepage": "https://github.com/HakureiMonika/dsh-browser-workbench#readme",
+  "homepage": "https://github.com/MaxJue/dsh-browser-workbench#readme",
   "bugs": {
-    "url": "https://github.com/HakureiMonika/dsh-browser-workbench/issues"
+    "url": "https://github.com/MaxJue/dsh-browser-workbench/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/HakureiMonika/dsh-browser-workbench.git"
+    "url": "git+https://github.com/MaxJue/dsh-browser-workbench.git"
   },
   "author": {
     "name": "HakureiMonika",

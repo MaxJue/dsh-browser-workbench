@@ -310,7 +310,7 @@ npm run verify:persist -- --phase=verify    # 重启 Host 后复核（需要新�
 
 ## 使用反馈
 
-遇到缺陷、兼容问题或有新功能建议，请提交 [GitHub Issue](https://github.com/HakureiMonika/dsh-browser-workbench/issues)。带上 DSH 版本、BrowserWorkbench 版本、操作系统、Node.js 版本和同时加载的浏览器插件，可以更快定位问题。
+遇到缺陷、兼容问题或有新功能建议，请提交 [GitHub Issue](https://github.com/MaxJue/dsh-browser-workbench/issues)。带上 DSH 版本、BrowserWorkbench 版本、操作系统、Node.js 版本和同时加载的浏览器插件，可以更快定位问题。
 
 安全漏洞请按 [安全策略](./SECURITY.md) 私密报告。不要把凭据、Cookie、会话数据或未脱敏日志放进公开 Issue。
 
