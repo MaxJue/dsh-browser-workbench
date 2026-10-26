@@ -9,7 +9,7 @@
 ![License](https://img.shields.io/badge/license-MIT-2563EB?style=for-the-badge)
 ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2%20%7C%200.2.1--rc.3-7C3AED?style=for-the-badge)
 ![Node](https://img.shields.io/badge/Node-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-16A34A?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-166%20passing-22C55E?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-170%20passing-22C55E?style=for-the-badge)
 ![Status](https://img.shields.io/badge/status-1.0.0--rc8%20%C2%B7%20not%20on%20npm-F97316?style=for-the-badge)
 
 [源码安装](#安装) · [看图了解](#能力展示) · [30 个工具](#功能介绍) · [验证结果](#验证结果) · [技术细节](./TECHNICAL.md) <br> <br>
@@ -34,7 +34,7 @@
 | 目标宿主 | DSH `0.2.1-rc.2` / `0.2.1-rc.3`(peer 精确固定)，Cordis `~4.0.5`，Schemastery `~3.18.5` |
 | npm 状态 | **未发布**。首次发布流程尚未执行，npm 安装方式目前不可用 |
 | 仓库内容 | 源码 + 测试 + 文档；**不含** `lib/` 构建产物，也不含 `node_modules`、`.sandbox`、`.npm-cache` |
-| 已实测通过 | 严格类型检查、166 个单测、正式构建、30 工具真实 Chromium 回归、独立进程 + 独立 `DSH_HOME` 的七层验证 |
+| 已实测通过 | 严格类型检查、170 个单测、正式构建、30 工具真实 Chromium 回归、独立进程 + 独立 `DSH_HOME` 的七层验证 |
 | 待完成 | 全新 DSH Web Profile 的安装/启动/认证/卸载人工验收；npm 首次发布 |
 | 未声明兼容 | DSH `0.1.x`(RC7 及更早)、macOS / Linux 实机、任意第三方浏览器插件 |
 
@@ -65,7 +65,7 @@ BrowserWorkbench 在 DSH Web 右侧栏嵌入一个完整的 Chromium 工作台�
 
 ### 一个窗口，完整调试链路
 
-Agent 对话、真实页面、标签栏、地址栏和调试结果全在 DSH 右侧栏。当页面出现异常时，不用在多个窗口来回切换——直接在原位查看 DOM 结构、Console 输出、Network 请求和脚本堆栈。
+Agent 对话、真实页面、标签栏、地址栏和调试结果全在 DSH 右侧栏。当页面出现异常时，不用在多个窗口来回切换——直接在原位查看 DOM 结构、Console 输出、Network 请求和脚本堆栈。下图是 Agent 在 DeepSeek 官网上跑完一轮诊断后的画面：左侧是工具调用与结论，右侧是同一个页面的实况。
 
 **典型排查场景**：页面布局突然错乱。Agent 调用 `browser_snapshot` 读取 DOM 结构，发现某个容器的 `display` 被异步脚本改成了 `none`。接着用 `browser_debugger` 在相关脚本里下断点，配合 Source Map 找到原始代码位置，最终定位到一个状态更新时序问题。
 
@@ -79,27 +79,25 @@ Agent 对话、真实页面、标签栏、地址栏和调试结果全在 DSH 右
 
 选择 BrowserWorkbench 后，当前 Session 只使用 BrowserWorkbench；选择其他浏览器工具后，BrowserWorkbench 不会在该 Session 注册工具或创建浏览器资源。选定后不能中途更换，需要换插件时新建 Session。其他 Session 可以独立选择，第三方插件本身不被停止或修改。
 
-![当前 Session 已仲裁的 BrowserWorkbench 工具](./assets/browser-workbench-session-controller-3.png)
-
 释放 BrowserWorkbench 资源只会关闭它自己的页面和调试状态，不会解除当前 Session 的工具选择。DSH 重启或 Agent Scope 替换后，原选择继续保持。
 
 ### 线上压缩代码？直接还原
 
-![Debugger、真实调用栈与 Source Map](./assets/browser-workbench-debugger.png)
+![Debugger、脚本列表与 Source Map](./assets/browser-workbench-debugger.png)
 
-代码被 Webpack 压缩成一行？没关系。连上 CDP Debugger，挂上 Source Map，直接在原始源码里找问题。调用栈、变量作用域、断点位置全都能准确映射回去。
+代码被 Webpack 压缩成一行？没关系。连上 CDP Debugger，脚本列表直接列出页面真实加载的 bundle，每个脚本都能一键打开源码与 Source Map；断点、单步、调用栈和变量作用域都在原位。
 
 ### 请求时序，一清二楚
 
-![Network Journal 中的连续布局请求](./assets/browser-workbench-network.png)
+![Network Journal 中的真实请求序列](./assets/browser-workbench-network.png)
 
-抓包列表按时间排列，`mode` 和 `generation` 的变化直接标出异步任务的先后顺序。专治状态覆盖、响应迟到这类时序 Bug。
+抓包列表按时间排列真实请求：document、样式、脚本、字体、xhr 逐条带状态码；拦截规则可以随时开关，把首屏加载和后续交互分开对照。专治状态覆盖、响应迟到这类时序 Bug。
 
 ### 双页实况，同时盯梢
 
 ![BrowserWorkbench 上下双页实况](./assets/browser-workbench-split-view.png)
 
-两个真实页面，独立画面，独立焦点。做响应式检查时上下排列，跨页面对比时左右排列。
+两个真实页面，独立画面，独立焦点。做响应式检查时上下排列，跨页面对比时左右排列——上图是同一个站点的中英文版并排对照。
 
 ### 保护现场，有据可查
 
@@ -109,13 +107,13 @@ Debug Session 把页面身份、操作时间线、Context Topology 和 Build Ide
 
 ![Checkpoint、Compare、Incident 与 Takeover 摘要](./assets/browser-workbench-diagnose-2.png)
 
-操作前后各存一个 Checkpoint，直接 Compare 生成 Incident 报告。
+操作前后各存一个 Checkpoint：Compare 直接给出环境可比性、回归判定（`fixed` / `regressed`）与 Incident 摘要，滚动这类纯视觉变化也算得清楚。
 
 ### 性能问题，无处藏身
 
 ![Performance 工具栏与性能制品](./assets/browser-workbench-performance.png)
 
-CPU 飙高？内存泄漏？用 Trace 看主线程阻塞，用 CPU Profile 找热点函数，用 Heap Snapshot 查对象保留。所有大文件自动存入 Session 隔离的 Artifact Store，不会撑爆 AI 的上下文。
+CPU 飙高？内存泄漏？用 Trace 看主线程阻塞，用 CPU Profile 找热点函数，用 Heap Snapshot 查对象保留。Trace 与 CPU Profile 会作为制品落盘并标注大小，大文件不会撑爆 AI 的上下文。
 
 ## 安装
 
@@ -283,7 +281,7 @@ tests/             与 src/ 结构一一对应
 scripts/verify/    e2e 验证脚本与本地夹具站点
 ```
 
-源码规模：`src/` 138 个文件约 1.63 万行；`tests/` 54 个文件、166 个用例。Architecture 约束见 [AGENTS.md](./AGENTS.md) 与 [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md)。
+源码规模：`src/` 138 个文件约 1.63 万行；`tests/` 55 个文件、170 个用例。Architecture 约束见 [AGENTS.md](./AGENTS.md) 与 [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md)。
 
 ## 开发与验证
 
@@ -291,7 +289,7 @@ scripts/verify/    e2e 验证脚本与本地夹具站点
 
 ```powershell
 npm run typecheck    # tsc --noEmit，0 错误
-npm test             # 166 个单测全部通过
+npm test             # 170 个单测全部通过
 npm run build        # tsdown，产出 lib/index.mjs 与 lib/client.js
 ```
 
@@ -316,7 +314,7 @@ npm run verify:persist -- --phase=verify    # 重启 Host 后复核（需要新�
 
 | 层级 | 入口 | 结果 |
 | --- | --- | --- |
-| 静态门禁 | `typecheck` / `test` / `build` | 0 错误 / 166 通过 / 构建成功 |
+| 静态门禁 | `typecheck` / `test` / `build` | 0 错误 / 170 通过 / 构建成功 |
 | Runtime | `verify:tools` | 145/145 |
 | 实例 | `verify:instance` | 10/10 |
 | 真实 UI 面板 | `verify:panel` | 33/33 |
