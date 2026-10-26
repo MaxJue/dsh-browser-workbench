@@ -23,7 +23,10 @@ export const Config: z<BrowserConfig> = z.object({
   chromiumDownloadTimeoutMs: z.number().step(1).min(1000).default(300000),
   subagentInteractive: z.boolean().default(false),
   sharedProfileSeedSessionId: z.string(),
-  toolRegistrationMode: z.union(['global', 'session-select']).default('session-select'),
+  providerMode: z.union(['auto', 'external']).default('auto'),
+  // 设置页「连接现有 Chrome/Edge」写回的调试端点；external 模式下 Session 首次需要浏览器时自动连它。
+  externalCdpEndpoint: z.string(),
+  toolRegistrationMode: z.union(['global', 'session-select', 'disabled']).default('global'),
   sessionController: z.object({
     conflictingToolPatterns: z.array(z.string()).default(['^browser_', '^chrome_', '^pilot_', '^mcp__playwright__', '^mcp__chrome_devtools__']),
     excludeTools: z.array(z.string()).default([]), includeTools: z.array(z.string()).default([]),

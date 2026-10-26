@@ -1,19 +1,12 @@
-import { useEffect, useRef, useState, useTransition } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import css from '../../panel.module.css'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
-  BrowserDebuggerInput,
-  BrowserEmulateInput,
   BrowserInputTraceUpdate,
   BrowserLivePaneSnapshot,
   BrowserLiveViewInput,
   BrowserLiveViewMode,
-  BrowserNetworkInput,
   BrowserPanelTabInput,
-  BrowserPanelView,
-  BrowserProfileInput,
-  BrowserProviderInput,
-  BrowserRecorderInput,
   BrowserSplitViewInput,
   BrowserSplitViewPane,
   BrowserTakeoverInput,
@@ -21,7 +14,7 @@ import type {
 } from '../../../domain/protocol.ts'
 import type { PanelController } from '../../panel-controller.ts'
 import type { Port } from '../../port.ts'
-import { isBrowserPanelView, saveLiveViewPreference } from '../../panel-model.ts'
+import { saveLiveViewPreference } from '../../panel-model.ts'
 import { calculatePointProjection } from '../../utils/geometry.ts'
 import { useBrowserSnapshot } from '../../hooks/useBrowserSnapshot.ts'
 import { useSplitResize } from '../../hooks/useSplitResize.ts'
@@ -32,34 +25,10 @@ import { TabBar } from '../common/TabBar.tsx'
 import { NavigationBar } from '../common/NavigationBar.tsx'
 import { ErrorAlert } from '../common/ErrorAlert.tsx'
 import { LiveView } from '../views/live/LiveView.tsx'
-import { DiagnosticView } from '../views/diagnostic/DiagnosticView.tsx'
-import { ConsoleView } from '../views/console/ConsoleView.tsx'
-import { NetworkView } from '../views/network/NetworkView.tsx'
-import { DebuggerView } from '../views/debugger/DebuggerView.tsx'
-import { PerformanceView } from '../views/performance/PerformanceView.tsx'
-import { ProviderView } from '../views/provider/ProviderView.tsx'
-import { EmulationView } from '../views/emulation/EmulationView.tsx'
-import { ExtensionsView } from '../views/extensions/ExtensionsView.tsx'
 
 const BROWSER_TAB_KIND = 'dsh-browser-workbench.browser'
 
-const viewLabels: Record<BrowserPanelView, string> = {
-  live: '实况',
-  diagnostic: '诊断',
-  console: 'Console',
-  network: 'Network',
-  debugger: 'Debugger',
-  performance: 'Performance',
-  provider: 'Provider',
-  extensions: '扩展管理',
-  emulation: 'Emulation',
-}
-
-interface BrowserTabParams {
-  view?: BrowserPanelView
-}
-
-type SessionSlotProps<K extends 'conversation.input.right' | 'sidebar.right.pane.tab'> = PropsRuntime<K> & {
+type SessionSlotProps<K extends 'sidebar.right.pane.tab'> = PropsRuntime<K> & {
   sessionId: string
 }
 
@@ -73,21 +42,19 @@ export function BrowserPanel({
   controller: PanelController
 }) {
   const { tab } = useTabInfo()
-  const params = tab.navigation.params as BrowserTabParams | undefined
-  const view = isBrowserPanelView(params?.view) ? params.view : 'live'
   const onClose = tab.actions.close
+  // 右侧面板只服务人：实况画面 + 接管。agent 向的视图（console/network/debugger…）
+  // 是工具能力的重复投影，已整体移除，面板不再承载视图路由。
+  const LIVE = 'live' as const
 
-  const [, startTransition] = useTransition()
-  const onViewChange = (next: BrowserPanelView) => {
-    startTransition(() => {
-      tab.actions.openTab(BROWSER_TAB_KIND, { params: { view: next } })
-    })
+  const reopenLiveTab = () => {
+    tab.actions.openTab(BROWSER_TAB_KIND, { params: { view: 'live' } })
   }
 
   const closeTabRef = useRef(onClose)
-  const openTabRef = useRef(onViewChange)
+  const openTabRef = useRef(reopenLiveTab)
   closeTabRef.current = onClose
-  openTabRef.current = onViewChange
+  openTabRef.current = reopenLiveTab
 
   useEffect(
     () =>
@@ -95,16 +62,16 @@ export function BrowserPanel({
         sessionId,
         tab.id,
         () => closeTabRef.current(),
-        next => openTabRef.current(next),
+        () => openTabRef.current(),
       ),
     [controller, sessionId, tab.id],
   )
 
   useEffect(() => {
-    controller.update(sessionId, tab.id, view)
-  }, [controller, sessionId, tab.id, view])
+    controller.update(sessionId, tab.id, LIVE)
+  }, [controller, sessionId, tab.id])
 
-  const { snapshot, error, setError, clearError } = useBrowserSnapshot(sessionId, view, port)
+  const { snapshot, error, setError, clearError } = useBrowserSnapshot(sessionId, LIVE, port)
 
   const [address, setAddress] = useState('')
   const [shareDragArmed, setShareDragArmed] = useState(false)
@@ -129,26 +96,14 @@ export function BrowserPanel({
     }
   }
 
-  const runDebugger = (input: BrowserDebuggerInput) =>
-    run(() => port.debugger(sessionId, input), 'Debugger 操作需要恢复后重试。')
   const runTabs = (input: BrowserPanelTabInput) =>
     run(() => port.tabs(sessionId, input), '浏览器标签操作需要恢复后重试。')
-  const runNetwork = (input: BrowserNetworkInput) =>
-    run(() => port.network(sessionId, input), 'Network 操作需要恢复后重试。')
-  const runProfile = (input: BrowserProfileInput) =>
-    run(() => port.profile(sessionId, input), 'Performance 操作需要恢复后重试。')
-  const runProvider = (input: BrowserProviderInput) =>
-    run(() => port.provider(sessionId, input), 'Provider 操作需要恢复后重试。')
-  const runEmulate = (input: BrowserEmulateInput) =>
-    run(() => port.emulate(sessionId, input), 'Emulation 操作需要恢复后重试。')
   const runLiveView = (input: BrowserLiveViewInput) =>
     run(() => port.liveView(sessionId, input), '实况显示模式切换需要恢复后重试。')
   const runSplitView = (input: BrowserSplitViewInput) =>
     run(() => port.splitView(sessionId, input), '浏览器双页分屏操作需要恢复后重试。')
   const runTakeover = (input: BrowserTakeoverInput) =>
     run(() => port.takeover(sessionId, input), '接管操作需要恢复后重试。')
-  const runRecorder = (input: BrowserRecorderInput) =>
-    run(() => port.recorder(sessionId, input), 'Recorder 操作需要恢复后重试。')
 
   const runInput = async (input: UntracedBrowserUserInput, clientRawAt = Date.now()) => {
     const trace = {
@@ -241,7 +196,7 @@ export function BrowserPanel({
 
   const { liveCanvasRef, topCanvasRef, bottomCanvasRef } = useLiveViewport(
     sessionId,
-    view,
+    LIVE,
     snapshot,
     splitRatio,
     runLiveView,
@@ -336,176 +291,115 @@ export function BrowserPanel({
   }
 
   return (
-    <section className={css.panel} data-live={view === 'live' || undefined}>
-      {view !== 'live' && (
-        <header className={css.panelHeader}>
-          <strong>{viewLabels[view]}</strong>
-          <span>
-            {view === 'extensions' && (
-              <button
-                type="button"
-                aria-label="返回浏览器实况"
-                title="返回浏览器实况"
-                onClick={() => onViewChange('live')}
-              >
-                返回实况
-              </button>
-            )}
-            <button type="button" aria-label="关闭右侧浏览器" title="关闭右侧浏览器" onClick={onClose}>
-              ×
-            </button>
-          </span>
-        </header>
-      )}
-
+    <section className={css.panel} data-live={true}>
       <div ref={browserShellRef} className={css.browserShell}>
         <ErrorAlert error={error} onClose={clearError} />
 
-        {view !== 'provider' && !snapshot.available && (
+        {!snapshot.available && (
           <div className={css.connectionRequired} role="status">
-            <strong>浏览器尚未连接</strong>
-            <span>请先打开 Provider 面板，按步骤连接已开启远程调试的 Chrome 或 Edge。</span>
+            <strong>浏览器尚未启动</strong>
+            <span>直接调用浏览器工具会自动启动本 Session 独立的浏览器；启动后这里显示实况画面，可点击接管操作。</span>
           </div>
         )}
 
-        {(view === 'provider' || snapshot.available) && (
+        {snapshot.available && (
           <>
-            {snapshot.available && view !== 'provider' && (
-              <>
-                <TabBar
-                  tabs={snapshot.tabs}
-                  onSelectTab={viewId => {
-                    void runTabs({ action: 'select', viewId, notifyAgent: true })
+            <TabBar
+              tabs={snapshot.tabs}
+              onSelectTab={viewId => {
+                void runTabs({ action: 'select', viewId, notifyAgent: true })
+              }}
+              onCloseTab={viewId => {
+                void runTabs({ action: 'close', viewId })
+              }}
+              onNewTab={() => {
+                void runTabs({ action: 'new' })
+              }}
+            />
+
+            <NavigationBar
+              activeViewId={snapshot.activeViewId}
+              address={address}
+              onAddressChange={setAddress}
+              onNavigate={() => {
+                void navigateAddress()
+              }}
+              onBack={() => {
+                if (snapshot.activeViewId !== undefined) {
+                  void runTabs({ action: 'back', viewId: snapshot.activeViewId })
+                }
+              }}
+              onForward={() => {
+                if (snapshot.activeViewId !== undefined) {
+                  void runTabs({ action: 'forward', viewId: snapshot.activeViewId })
+                }
+              }}
+              onReload={() => {
+                if (snapshot.activeViewId !== undefined) {
+                  void runTabs({ action: 'reload', viewId: snapshot.activeViewId })
+                }
+              }}
+            />
+
+            <div className={css.browserContent}>
+              {snapshot.tabs.length === 0 && (
+                <div className={css.message}>{snapshot.message ?? '当前没有浏览器标签，请点击 + 新建标签。'}</div>
+              )}
+
+              {snapshot.activeViewId !== undefined && (
+                <LiveView
+                  snapshot={snapshot}
+                  shareDragArmed={shareDragArmed}
+                  splitRatio={splitRatio}
+                  splitOrientation={splitOrientation}
+                  livePanelRef={livePanelRef}
+                  liveCanvasRef={liveCanvasRef}
+                  liveRef={liveRef}
+                  topCanvasRef={topCanvasRef}
+                  bottomCanvasRef={bottomCanvasRef}
+                  topLiveRef={topLiveRef}
+                  bottomLiveRef={bottomLiveRef}
+                  splitContainerRef={splitContainerRef}
+                  imeProxyRef={imeProxyRef}
+                  imeProxyHandlers={imeProxyHandlers}
+                  dividerProps={dividerProps}
+                  pointerHandlers={livePointerHandlers}
+                  onWheel={onWheel}
+                  onDragStart={onDragStart}
+                  onDragEnd={onDragEnd}
+                  onFocusPane={pane => {
+                    void runSplitView({ action: 'focus', pane, notifyAgent: true })
                   }}
-                  onCloseTab={viewId => {
-                    void runTabs({ action: 'close', viewId })
+                  onSwitchLiveView={mode => {
+                    void switchLiveView(mode)
                   }}
-                  onNewTab={() => {
-                    void runTabs({ action: 'new' })
+                  onOpenSplitView={orientation => {
+                    void runSplitView({ action: 'open', orientation, notifyAgent: true })
                   }}
+                  onCloseSplitView={() => {
+                    void runSplitView({ action: 'close', notifyAgent: true })
+                  }}
+                  onToggleSplitOrientation={() => {
+                    void runSplitView({
+                      action: 'orientation',
+                      orientation: splitOrientation === 'left-right' ? 'top-bottom' : 'left-right',
+                      notifyAgent: true,
+                    })
+                  }}
+                  onSwapSplitPanes={() => {
+                    void runSplitView({ action: 'swap', notifyAgent: true })
+                  }}
+                  onResetSplitRatio={() => {
+                    void runSplitView({ action: 'ratio', ratio: 0.5, notifyAgent: true })
+                  }}
+                  onToggleTakeover={() => {
+                    void runTakeover({ action: snapshot.control?.owner === 'user' ? 'return' : 'request' })
+                  }}
+                  onToggleShareDrag={() => setShareDragArmed(v => !v)}
+                  onClosePanel={onClose}
                 />
-
-                <NavigationBar
-                  activeViewId={snapshot.activeViewId}
-                  address={address}
-                  onAddressChange={setAddress}
-                  onNavigate={() => {
-                    void navigateAddress()
-                  }}
-                  onBack={() => {
-                    if (snapshot.activeViewId !== undefined) {
-                      void runTabs({ action: 'back', viewId: snapshot.activeViewId })
-                    }
-                  }}
-                  onForward={() => {
-                    if (snapshot.activeViewId !== undefined) {
-                      void runTabs({ action: 'forward', viewId: snapshot.activeViewId })
-                    }
-                  }}
-                  onReload={() => {
-                    if (snapshot.activeViewId !== undefined) {
-                      void runTabs({ action: 'reload', viewId: snapshot.activeViewId })
-                    }
-                  }}
-                />
-              </>
-            )}
-
-            {view !== 'provider' && snapshot.available && (
-              <div className={css.browserContent}>
-                {snapshot.available && snapshot.tabs.length === 0 && view !== 'extensions' && (
-                  <div className={css.message}>{snapshot.message ?? '当前没有浏览器标签，请点击 + 新建标签。'}</div>
-                )}
-
-                {view === 'live' && snapshot.available && snapshot.activeViewId !== undefined && (
-                  <LiveView
-                    snapshot={snapshot}
-                    shareDragArmed={shareDragArmed}
-                    splitRatio={splitRatio}
-                    splitOrientation={splitOrientation}
-                    livePanelRef={livePanelRef}
-                    liveCanvasRef={liveCanvasRef}
-                    liveRef={liveRef}
-                    topCanvasRef={topCanvasRef}
-                    bottomCanvasRef={bottomCanvasRef}
-                    topLiveRef={topLiveRef}
-                    bottomLiveRef={bottomLiveRef}
-                    splitContainerRef={splitContainerRef}
-                    imeProxyRef={imeProxyRef}
-                    imeProxyHandlers={imeProxyHandlers}
-                    dividerProps={dividerProps}
-                    pointerHandlers={livePointerHandlers}
-                    onWheel={onWheel}
-                    onDragStart={onDragStart}
-                    onDragEnd={onDragEnd}
-                    onFocusPane={pane => {
-                      void runSplitView({ action: 'focus', pane, notifyAgent: true })
-                    }}
-                    onSwitchLiveView={mode => {
-                      void switchLiveView(mode)
-                    }}
-                    onOpenSplitView={orientation => {
-                      void runSplitView({ action: 'open', orientation, notifyAgent: true })
-                    }}
-                    onCloseSplitView={() => {
-                      void runSplitView({ action: 'close', notifyAgent: true })
-                    }}
-                    onToggleSplitOrientation={() => {
-                      void runSplitView({
-                        action: 'orientation',
-                        orientation: splitOrientation === 'left-right' ? 'top-bottom' : 'left-right',
-                        notifyAgent: true,
-                      })
-                    }}
-                    onSwapSplitPanes={() => {
-                      void runSplitView({ action: 'swap', notifyAgent: true })
-                    }}
-                    onResetSplitRatio={() => {
-                      void runSplitView({ action: 'ratio', ratio: 0.5, notifyAgent: true })
-                    }}
-                    onToggleTakeover={() => {
-                      void runTakeover({ action: snapshot.control?.owner === 'user' ? 'return' : 'request' })
-                    }}
-                    onToggleShareDrag={() => setShareDragArmed(v => !v)}
-                    onOpenDiagnostic={onViewChange}
-                    onRecorderAction={(action, mode) => {
-                      void runRecorder({ action, ...(mode ? { mode } : {}) })
-                    }}
-                    onClosePanel={onClose}
-                  />
-                )}
-
-                {view === 'diagnostic' && snapshot.available && snapshot.activeViewId !== undefined && (
-                  <DiagnosticView snapshot={snapshot} runRecorder={runRecorder} />
-                )}
-
-                {view === 'console' && snapshot.available && snapshot.activeViewId !== undefined && (
-                  <ConsoleView consoleMessages={snapshot.console} />
-                )}
-
-                {view === 'network' && snapshot.available && snapshot.activeViewId !== undefined && (
-                  <NetworkView snapshot={snapshot} runNetwork={runNetwork} />
-                )}
-
-                {view === 'debugger' && snapshot.activeViewId !== undefined && (
-                  <DebuggerView snapshot={snapshot} runDebugger={runDebugger} setError={setError} />
-                )}
-
-                {view === 'performance' && snapshot.activeViewId !== undefined && (
-                  <PerformanceView snapshot={snapshot} runProfile={runProfile} />
-                )}
-
-                {view === 'extensions' && <ExtensionsView />}
-
-                {view === 'emulation' && snapshot.activeViewId !== undefined && (
-                  <EmulationView runEmulate={runEmulate} />
-                )}
-              </div>
-            )}
-
-            {view === 'provider' && (
-              <ProviderView snapshot={snapshot} runProvider={runProvider} error={error} setError={setError} />
-            )}
+              )}
+            </div>
           </>
         )}
       </div>

@@ -5,7 +5,8 @@ import type { BrowserCallFrame, BrowserDiagnosticPanelSnapshot, BrowserLiveViewM
 import type { BrowserExtensionRecord } from '../provider/persistent-profile.ts'
 import type { CdpContextAdapter } from '../diagnostics/cdp-context-adapter.ts'
 
-export type ToolRegistrationMode = 'global' | 'session-select'
+export type ToolRegistrationMode = 'global' | 'session-select' | 'disabled'
+export type BrowserProviderMode = 'auto' | 'external'
 export type BrowserControllerMode = 'unselected' | 'other' | 'dsh-browser-tools'
 export type BrowserProxyMode = 'system' | 'direct' | 'custom'
 
@@ -42,6 +43,8 @@ export interface Config {
   chromiumDownloadTimeoutMs?: number
   subagentInteractive?: boolean
   sharedProfileSeedSessionId?: string
+  providerMode?: BrowserProviderMode
+  externalCdpEndpoint?: string
   toolRegistrationMode?: ToolRegistrationMode
   sessionController?: SessionControllerConfig
 }
@@ -71,6 +74,8 @@ export interface ResolvedConfig {
   chromiumDownloadTimeoutMs: number
   subagentInteractive: boolean
   sharedProfileSeedSessionId?: string
+  providerMode: BrowserProviderMode
+  externalCdpEndpoint?: string
   toolRegistrationMode: ToolRegistrationMode
   sessionController: {
     conflictingToolPatterns: string[]
@@ -226,6 +231,7 @@ export interface SessionState {
   }
   nextViewId: number
   queue: Promise<void>
+  autoLaunch?: Promise<void>
   provider: BrowserProviderKind
   providerEndpoint?: string
   providerBrowser?: Browser

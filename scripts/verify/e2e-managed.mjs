@@ -139,7 +139,7 @@ try {
   fixture = await startFixtureServer()
   secureFixture = await startSecureFixtureServer({ pfxPath })
 
-  await step('provider surface offers only external-cdp', async () => {
+  await step('provider surface advertises per-session managed browsers', async () => {
     const { runtime, identity } = makeRuntime()
     try {
       const output = await runtime.provider(identity, signal, { action: 'list' })
@@ -147,7 +147,7 @@ try {
     } finally { await runtime.dispose() }
   }, data => {
     const providers = data.providers.map(item => item.provider)
-    if (JSON.stringify(providers) !== JSON.stringify(['disconnected', 'external-cdp'])) throw new Error(`unexpected providers: ${JSON.stringify(providers)}`)
+    if (JSON.stringify(providers) !== JSON.stringify(['disconnected', 'managed', 'external-cdp'])) throw new Error(`unexpected providers: ${JSON.stringify(providers)}`)
     return { active: data.active, providers }
   })
 

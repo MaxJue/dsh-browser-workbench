@@ -4,7 +4,7 @@
 > **制定日期**: 2026-10-23  
 > **更新日期**: 2026-10-24  
 > **覆盖范围**: 全项目工程目录规划、Client 端 React 19 / Hooks 模块化重构、Domain 领域驱动分层架构落地  
-> **当前状态**: ✅ 全项目模块化重构完成并通过全部验证（Typecheck 0 错误、143 项单元测试 100% 通过、Bundle 构建成功）
+> **当前状态**: ✅ 全项目模块化重构完成并通过全部验证（Typecheck 0 错误、178 项单元测试 100% 通过、Bundle 构建成功）
 
 ---
 
@@ -604,10 +604,10 @@ src/
   - 提取 `src/runtime/runtime-interaction-services.ts`（141 行）：用户人工接管（Takeover）、鼠标键盘手势分发、输入观测器与飞行记录器控制；
   - 提取 `src/runtime/runtime-diagnostic-services.ts`（691 行）：会话检查点比对、故障溯源分析、面板综合诊断快照生成；
   - 精简后 `src/runtime/runtime-core-services.ts`（613 行）：收敛网络拦截、性能采样、CRX 扩展生命周期、CDP 外部挂载与 Session 编排。
-- **全仓扫描确认**：当前全项目**没有任何文件超过 1,000 行**代码（最大文件为 `src/index.ts` 728 行，主要文件全部位于 200~690 行健康区间）。
+- **全仓扫描确认**：当前全项目**没有任何文件超过 1,000 行**代码（入口 `src/index.ts` 纯胶水层仅 78 行，核心业务文件全部位于 150~690 行健康区间）。
 - **清理过渡转发**：彻底删除 `src/runtime/` 中原有的 47 个过渡重导出垫片文件，彻底迁移为原生 domain 模块引用。
 
 ### 7.4 全链路质量与构建验证
 1. **类型检查**：`npm run typecheck` (`tsc --noEmit -p tsconfig.json`) -> **0 错误**。
-2. **自动化测试**：`npm test` (`node --experimental-strip-types --test tests/**/*.test.mjs`) -> **143 项测试全部通过（Pass 143, Fail 0）**。
+2. **自动化测试**：`npm test` (`node --experimental-strip-types --test tests/**/*.test.mjs`) -> **178 项测试全部通过（Pass 178, Fail 0）**。
 3. **打包构建**：`npm run build` (`tsdown`) -> **成功生成** `lib/client.js` (CJS 浏览器包) 与 `lib/index.mjs` (ESM 核心运行时)。

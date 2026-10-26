@@ -2,6 +2,8 @@ import { chromium } from 'playwright-core'
 import type { AttachmentStore } from '@deepseek-ai/dsh-attachment'
 import type { BrowserContext, ElementHandle, Page, Request } from 'playwright-core'
 import { fail } from '../domain/errors.ts'
+import { assertCdpEndpoint } from '../domain/policy.ts'
+import { connectExternalCdp } from '../provider/external-cdp.ts'
 import type { Identity, ResolvedConfig, RuntimeState, SessionState, ToolOutput, ViewState } from '../domain/types.ts'
 import type { BrowserSplitViewPane } from '../domain/protocol.ts'
 import { ArtifactStore } from '../provider/artifact-store.ts'
@@ -198,9 +200,8 @@ export abstract class BrowserRuntimeFoundation {
   protected async persistentContext(sessionId: string, profileName = 'default', launchExtensions?: readonly SessionState['extensionRegistry'][number][]): Promise<{ context: BrowserContext; extensionRegistry: SessionState['extensionRegistry']; loadedExtensions: SessionState['loadedExtensions']; loadedExtensionIds: Set<string> }> {
     const extensions = await this.profiles.listExtensions(sessionId)
     const enabled = launchExtensions === undefined ? extensions.filter(extension => extension.enabled) : [...launchExtensions]
-    const executablePath = enabled.length === 0
-      ? this.executablePath()
-      : await this.chromiumManager.ensureInstalled()
+    const executablePath = (enabled.length === 0 ? this.executablePath() : undefined)
+      ?? await this.chromiumManager.ensureInstalled()
     const extensionPaths = enabled.map(extension => extension.path)
     const network = this.browserLaunchNetwork()
     const context = await chromium.launchPersistentContext(this.profiles.profilePath(sessionId, profileName), {
@@ -223,6 +224,61 @@ export abstract class BrowserRuntimeFoundation {
     // 只有新Context 已经成功加载目标扩展后，才能删除不再登记或不再运行的旧版本目录，确保启动失败仍可使用旧版本回滚。
     await this.profiles.pruneExtensionDirectories(sessionId, [...extensions, ...enabled])
     return { context, extensionRegistry: extensions, loadedExtensions: enabled, loadedExtensionIds: new Set(enabled.map(extension => extension.extensionId)) }
+  }
+
+  /**
+   * auto provider：Session 首次真正需要浏览器时，再启动它独占的持久化 Chromium。
+   * 延迟到调用点是为了避免“新会话即启动浏览器”，同时保证不同 Session 使用不同 user-data-dir，互不干扰。
+   */
+  protected async ensureAutoProvider(session: SessionState, options: { force?: boolean; profileName?: string } = {}): Promise<void> {
+    if (session.providerBinding.kind !== 'disconnected') return
+    // external 模式：设置页里填过调试端点时，首个浏览器调用直接连到用户自己开着的 Chrome/Edge，不启动新实例。
+    const externalEndpoint = options.force === true ? undefined : this.config.externalCdpEndpoint
+    const connectExternal = this.config.providerMode === 'external' && externalEndpoint !== undefined
+    if (options.force !== true && this.config.providerMode !== 'auto' && !connectExternal) return
+    const pending = session.autoLaunch
+    if (pending !== undefined) return pending
+    const profileName = options.profileName ?? 'default'
+    const launch = (async () => {
+      if (connectExternal) {
+        const endpoint = assertCdpEndpoint(externalEndpoint).href
+        let connection
+        try {
+          connection = await connectExternalCdp(endpoint, this.config.externalCdpTimeoutMs, async () => {})
+        } catch (cause) {
+          const detail = cause instanceof Error ? cause.message : String(cause)
+          fail('PROVIDER_UNAVAILABLE', `连接已开启远程调试的浏览器失败（${endpoint}）：${detail}。请确认浏览器以 --remote-debugging-port 启动。`)
+        }
+        if (this.state.disposed || session.providerBinding.kind !== 'disconnected') {
+          await connection.browser.close().catch(() => {})
+          return
+        }
+        session.providerBinding = { kind: 'external-cdp', ...connection, endpoint }
+        session.provider = 'external-cdp'
+        session.providerEndpoint = endpoint
+        await this.bindContext(session)
+        return
+      }
+      const { context, extensionRegistry, loadedExtensions, loadedExtensionIds } = await this.persistentContext(session.sessionId, profileName)
+      // 启动期间可能已有另一条路径完成绑定或 Runtime 已销毁；丢弃后启动的实例，避免两个上下文争用同一 Session。
+      if (this.state.disposed || session.providerBinding.kind !== 'disconnected') {
+        await context.close().catch(() => {})
+        return
+      }
+      session.providerBinding = { kind: 'isolated-persistent', context, profileName }
+      session.provider = 'managed'
+      session.persistentProfile = profileName
+      session.extensionRegistry = [...extensionRegistry]
+      session.loadedExtensions = [...loadedExtensions]
+      session.loadedExtensionIds = new Set(loadedExtensionIds)
+      await this.bindContext(session)
+    })()
+    session.autoLaunch = launch
+    try {
+      await launch
+    } finally {
+      if (session.autoLaunch === launch) session.autoLaunch = undefined
+    }
   }
 
   protected async launchSharedPersistentContext(launchExtensions?: readonly SessionState['extensionRegistry'][number][]): Promise<BrowserContext> {

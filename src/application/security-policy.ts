@@ -7,7 +7,7 @@ import type { BrowserRuntime } from '../runtime/runtime.ts'
 export interface BrowserSafetyPolicyOptions {
   definitions: readonly ToolDefinition[]
   getController: () => BrowserControllerStore | undefined
-  getEffectiveToolRegistrationMode: () => 'global' | 'session-select'
+  getEffectiveToolRegistrationMode: () => 'global' | 'session-select' | 'disabled'
   subagentInteractive: boolean
 }
 

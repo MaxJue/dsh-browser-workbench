@@ -9,7 +9,7 @@ Not just a viewer. It clicks, sets breakpoints, captures requests, resolves Sour
 ![License](https://img.shields.io/badge/license-MIT-2563EB?style=for-the-badge)
 ![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2%20%7C%200.2.1--rc.3-7C3AED?style=for-the-badge)
 ![Node](https://img.shields.io/badge/Node-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-16A34A?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-170%20passing-22C55E?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-178%20passing-22C55E?style=for-the-badge)
 ![Status](https://img.shields.io/badge/status-1.0.0--rc8%20%C2%B7%20not%20on%20npm-F97316?style=for-the-badge)
 
 [Install from source](#installation) · [See it work](#what-it-looks-like) · [30 tools](#feature-reference) · [Verification](#verification-results) · [Technical details](./TECHNICAL.en.md) <br> <br>
@@ -34,19 +34,21 @@ English | [简体中文](./README.md)
 | Target host | DSH `0.2.1-rc.2` / `0.2.1-rc.3`, declared as the peer range `^0.2.1-rc.2 \|\| ^0.2.1-rc.3`; Cordis `~4.0.5`, Schemastery `~3.18.5` |
 | npm status | **Not published.** The first release has not been made; installing from npm does not work yet |
 | Repository contents | Source, tests, docs; **no** `lib/` build output, no `node_modules`, `.sandbox`, or `.npm-cache` |
-| Verified | Strict typecheck, 170 unit tests, production build, 30-tool regression against real Chromium, layered verification in a separate process with its own `DSH_HOME` |
-| Still pending | Manual install/launch/auth/uninstall acceptance on a brand-new DSH Web profile; first npm release |
+| Verified | Strict typecheck, 178 unit tests, production build, 30-tool regression against real Chromium, layered verification in a separate process with its own `DSH_HOME` |
+| Still pending | Rewriting the panel and RPC e2e scripts for the new UI; manual install/launch/auth/uninstall acceptance on a brand-new DSH Web profile; first npm release |
 | Not claimed | DSH `0.1.x` hosts, macOS/Linux hardware, third-party browser plugins |
 
 ## What this plugin is
 
 Front-end debugging hurts because you cannot see the page structure, cannot see the request details, cannot get a breakpoint to land, and the error is one line of text. Agents have it worse on a complex page: they can take a screenshot, describe it, and then get stuck in a loop of "try reloading" and "try clearing the cache".
 
-BrowserWorkbench puts a working browser workbench in the DSH Web sidebar and ships 30 purpose-built automation tools. It is not an embedded DevTools frontend: the panel is a reimplementation built for agent workflows, with nine views — live, diagnostic, console, network, debugger, performance, provider, extensions, and emulation. The agent can read page structure, drive elements, read the Console, trace requests, set breakpoints, walk call stacks, resolve Source Maps, profile performance, and record the full state before and after an operation — all inside one session.
+BrowserWorkbench puts a working browser in the DSH Web sidebar and ships 30 purpose-built automation tools. The panel is deliberately thin: a tab strip, an address bar (back / forward / reload), the real page live, and human takeover. Eight former views — Console, Network, Debugger, Performance, Emulation, Diagnostics, Provider, and Extensions — are gone from the panel, because those capabilities belong to the agent: they are all served by the `browser_*` tools (`browser_console_messages`, `browser_network_requests`, `browser_debugger`, `browser_profile`, `browser_diagnose`, `browser_emulate`, and friends) instead of a hand-built UI clone. The agent reads page structure, drives elements, reads the Console, traces requests, sets breakpoints, walks call stacks, resolves Source Maps, profiles performance, and records the full scene before and after an operation.
 
-**The tool surface only accepts external CDP connections.** Agents connect through `browser_provider` to a Chrome or Edge instance the user already started with remote debugging. The plugin does not launch, scan, or download a browser; pages, tabs, and login state stay in the user's own browser. The implementation and tests for managed launch (`executablePath`, `headless`, proxies) are still present, but this version does not expose them on the tool surface — see [Known boundaries](#known-boundaries).
+**The entry point is the Start page of the right sidebar**: the plugin registers a `guide` entry with `sidebarRightTabs`, so the sidebar's Start (开始) page shows a card titled 浏览器实况 ("browser live view") with the description 查看并接管 Agent 正在操作的浏览器 ("watch and take over the browser the agent is driving"); click it to open the panel. **The composer carries no browser binding control anymore** — `BrowserControl`, `ControllerMenu`, `ArbitratedToolsDialog`, and the auto-reveal behaviour are gone; binding lives in Settings only.
 
-![The live browser workbench inside DSH Web](./assets/browser-workbench-hero.png)
+**Zero setup, one browser per session**: with the default `toolRegistrationMode: global` a new session needs no picker and no manual bind. The first browser tool call automatically launches a dedicated persistent Chromium for that session (`providerMode: auto`); pages, cookies, and login state are never shared, so different projects run side by side without interfering. To attach your own Chrome/Edge over remote debugging, use **Settings → 浏览器 → 连接现有 Chrome / Edge**: enter the debug endpoint, click Connect, and every session's first browser call auto-connects to it. `browser_provider` still works for a one-off connect / disconnect inside a session.
+
+![The live workbench inside DSH Web: conversation on the left, tab strip, address bar, and page on the right](./assets/browser-workbench-panel.png)
 
 ## Contents
 
@@ -63,57 +65,58 @@ BrowserWorkbench puts a working browser workbench in the DSH Web sidebar and shi
 
 ## What it looks like
 
+### Opening the panel
+
+Switch the right sidebar to the Start (开始) tab: the second card is 浏览器实况, described as 查看并接管 Agent 正在操作的浏览器. Clicking it opens the panel, which shares the same browser tools as the agent — no binding step needed.
+
+![The 浏览器实况 card on the sidebar's Start page](./assets/browser-workbench-entry.png)
+
 ### One window, the whole debugging loop
 
-The agent conversation, the real page, the tab strip, the address bar, and the debug output all live in the DSH right sidebar. When a page breaks you do not juggle windows — DOM structure, Console output, Network requests, and script stacks are right there. The screenshot below is a completed diagnostic run against the DeepSeek homepage: tool calls and conclusions on the left, the same page live on the right.
+The agent conversation, the real page, the tab strip, and the address bar all live in the same DSH sidebar window. The panel is deliberately thin: it exists so you can see the page the agent is driving and take over mouse and keyboard when needed. Conclusions, error text, request lists, and call stacks come back into the conversation, produced by tool calls rather than by panel space.
 
-**A typical hunt:** the layout suddenly falls apart. The agent calls `browser_snapshot`, reads the DOM, and finds a container whose `display` was flipped to `none` by an async script. It then sets a breakpoint with `browser_debugger`, resolves the Source Map, and finds an update-ordering bug in the original source.
-
-### Pick once, stay consistent for the session
-
-![Choosing the browser toolset for a formal session](./assets/browser-workbench-session-controller-1.png)
-
-Before a formal session uses a browser for the first time, it has to pick BrowserWorkbench or another browser toolset already present in the profile. Until then the session exposes no browser tools to the agent.
-
-![BrowserWorkbench stays locked for the session after selection](./assets/browser-workbench-session-controller-2.png)
-
-Once BrowserWorkbench is selected, that session uses only BrowserWorkbench. If another browser toolset was picked instead, BrowserWorkbench registers no tools and creates no browser resources for that session. The choice cannot be changed mid-session — start a new session to switch. Other sessions choose independently, and third-party plugins are neither stopped nor modified.
-
-Releasing BrowserWorkbench resources drops the CDP connection and clears that session's views and debug state, but does not close the user's browser tabs or undo the session's selection. Calling tools again afterwards requires a fresh `browser_provider connect`. The choice also survives a DSH restart or an agent-scope replacement.
-
-### Minified in production? Get the source back
-
-![Debugger with the real script list and Source Maps](./assets/browser-workbench-debugger.png)
-
-Webpack squeezed the code into a single line? Fine. Connect the CDP debugger and the script list shows the bundles the page actually loaded: `script_source` returns the runtime source, and scripts that declare a `sourceMappingURL` also yield their `.map` (saved as an artifact and returned by reference; scripts without one fail with `SOURCE_MAP_NOT_DECLARED`). Breakpoints, stepping, call stacks, and scope stay where they belong.
-
-### Request ordering, made obvious
-
-![Real request sequence in the Network journal](./assets/browser-workbench-network.png)
-
-The capture list is a real, time-ordered record: document, styles, scripts, fonts, xhr, each with its status code. Interception rules toggle on demand, so first paint and later interactions can be compared separately. This is the fastest way to catch state overwrites and late responses.
+**A typical hunt:** the layout suddenly falls apart. The agent calls `browser_snapshot` to inspect the ARIA structure and element refs, uses `browser_get_attribute` or `browser_diagnose inspect` to examine container styles and attributes, and discovers that a container was hidden by an asynchronous script. It sets a breakpoint with `browser_debugger`, resolves the Source Map, cross-checks with `browser_console_messages` and `browser_network_requests`, and finds an update-ordering bug in the original source. You watch the same page live in the sidebar the whole time.
 
 ### Two live pages, watched together
 
-![Two-page split live view in BrowserWorkbench](./assets/browser-workbench-split-view.png)
+The panel shows two real pages stacked or side by side, with separate frames and separate focus, driven by `browser_split_view`: stacked for responsive checks, side by side for cross-page comparison. Both pages share the same panel shell, and frames, address bar, and takeover follow each page.
 
-Two real pages, separate frames, separate focus. Stack them for responsive checks, place them side by side for cross-page comparison — the screenshot shows the Chinese and English versions of the same site, side by side.
+### Bind in Settings, one global choice
 
-### Preserve the scene, prove the claim
+`Settings → 浏览器` decides who owns the browser tools; one click writes the profile patch and hot-reloads it:
 
-![Debug session, topology, recorder, and action timeline](./assets/browser-workbench-diagnose-1.png)
+![The browser section in Settings, with DSH BrowserWorkbench selected](./assets/browser-workbench-settings.png)
 
-A debug session bundles page identity, the action timeline, context topology, and build identity.
+- **DSH BrowserWorkbench** (default, `choice: workbench`): launches a dedicated Chromium for this plugin. Every session and subagent shares the 30 `browser_*` tools, with pages, cookies, and login state isolated per session.
+- **Connect an existing Chrome / Edge** (`choice: existing`): no new browser. It attaches to the window you already use, reusing its login state, cookies, and extensions. Expand the card, fill in the debug endpoint (default `http://127.0.0.1:9222`), click Connect; the profile gets `providerMode: external` and `externalCdpEndpoint`, and every session's first browser call then **auto-connects** to that endpoint — no manual `browser_provider connect`.
+- **Disable this plugin and hand the browser tools to another plugin** (secondary footer switch, `choice: off`, i.e. `toolRegistrationMode: disabled`): registers no tools and creates no controller — a real opt-out instead of a silent no-op.
 
-![Checkpoint, compare, incident, and takeover summaries](./assets/browser-workbench-diagnose-2.png)
+![The expanded "Connect an existing Chrome / Edge" card with endpoint, launch commands, and copy buttons](./assets/browser-workbench-settings-existing.png)
 
-Take a checkpoint before and after an operation: compare first decides whether the two scenes are comparable (viewId, context generation, URL, viewport, DPR), then reports `fixed` / `improved` / `unchanged` / `regressed` / `incomparable` / `evidence-insufficient` from four signal groups — page overflow, element hit-testing and visibility, Console event count (all levels), and failed-request count (`failure` or 4xx/5xx). Dimensions without evidence are labelled as such instead of guessed.
+The binding is **global**: per-session binding is not offered. `session-select` remains in the implementation, but the settings page no longer exposes it; it exists for tests and legacy configs only.
 
-### Performance problems have nowhere to hide
+A normally launched window cannot be attached, and Chrome 136+ also requires a separate user-data directory for the debug instance. The endpoint area ships Windows cmd and macOS launch commands, each with a Copy button, and shows only the set matching the current UA:
 
-![Performance toolbar and artifacts](./assets/browser-workbench-performance.png)
+```powershell
+chrome.exe --remote-debugging-port=9222 --user-data-dir=%TEMP%\dsh-chrome
+# or
+msedge.exe --remote-debugging-port=9222 --user-data-dir=%TEMP%\dsh-edge
+```
 
-CPU spiking? Memory leaking? Trace the main thread, profile for hot functions, snapshot the heap for retained objects. Trace and CPU Profile are written out as artifacts with their sizes attached, so large files never flood the model's context.
+A separate `--user-data-dir` starts from a fresh profile, so log in once in that window. To reuse your daily profile, point `--user-data-dir` at it — but make sure no other Chrome instance is holding that directory. Success is `http://127.0.0.1:9222/json/version` returning JSON; the "allow remote debugging" toggle built into Chrome does not expose that endpoint — do not rely on it.
+
+If the settings page cannot reach the config editor (read-only deployment, or the plugin is missing), switching downgrades to a read-only note plus the manual edit in `~/.dsh/profiles/desktop/cordis.patch.yml` under `- id: browser-tools`. The settings page talks to the host through the session-less `controller_overview` and `controller_set_browser_choice` RPCs (the old `controller_set_registration_mode` is gone).
+
+### The tool surface, not the panel
+
+Removing eight views did not remove capability — it moved everything back to the tool surface, where the agent belongs.
+
+- Breakpoints, the script list, and Source Maps come from `browser_debugger`: `script_source` returns the runtime source, scripts that declare a `sourceMappingURL` also yield their `.map` (saved as an artifact and returned by reference; scripts without one fail with `SOURCE_MAP_NOT_DECLARED`), and breakpoints, stepping, call stacks, and scopes stay in place.
+- Request ordering comes from `browser_network_requests` and `browser_network_control`: document, styles, scripts, fonts, xhr, each with its status code; interception rules toggle on demand, so first paint and later interactions can be compared separately, and paused requests can be inspected, fulfilled, or replayed. This is the fastest way to catch state overwrites and late responses.
+- Forensics come from `browser_diagnose`: a debug session bundles page identity, the action timeline, context topology, and build identity; take a checkpoint before and after an operation, and compare first decides whether the two scenes are comparable (viewId, context generation, URL, viewport, DPR), then reports `fixed` / `improved` / `unchanged` / `regressed` / `incomparable` / `evidence-insufficient` from four signal groups — page overflow, element hit-testing and visibility, Console event count (all levels), and failed-request count (`failure` or 4xx/5xx). Dimensions without evidence are labelled as such instead of guessed.
+- Performance comes from `browser_profile`: trace the main thread, profile for hot functions, snapshot the heap for retained objects; Trace and CPU Profile are written out as artifacts with their sizes attached, so large files never flood the model's context.
+
+None of these has a panel UI, and this README no longer claims otherwise.
 
 ## Installation
 
@@ -149,7 +152,7 @@ Enable it in the profile's `cordis.patch.yml`:
       name: dsh-browser-workbench
 ```
 
-Start Chrome with remote debugging (for example `chrome.exe --remote-debugging-port=9222`), then start DSH Web. Open a new session, open the BrowserWorkbench panel on the right, and follow the three steps in "connect an existing Chrome" to bind `http://127.0.0.1:9222`. If the connection fails, check the Chrome process, its launch flags, and the port.
+Start Chrome with remote debugging (for example `chrome.exe --remote-debugging-port=9222`), then start DSH Web. Switch the right sidebar to the Start tab and click 浏览器实况 to watch the page the agent is driving; to attach that Chrome, pick **Connect an existing Chrome / Edge** under **Settings → 浏览器** and click Connect (or have the agent call `browser_provider` to connect / disconnect for the session). If the connection fails, check the Chrome process, its launch flags, and the port.
 
 Upgrading from the historical `dsh-browser-tools` package? Remove the old package first. Keep `id: browser-tools` and `$DSH_HOME/browser-tools`. Never install both packages into the same profile.
 
@@ -243,18 +246,19 @@ Upgrading from the historical `dsh-browser-tools` package? Remove the old packag
 
 | Capability | Description |
 | --- | --- |
-| First choice | Before a formal session uses a browser, pick BrowserWorkbench or another browser toolset |
-| Session lock | The browser plugin cannot change within a session; start a new session to switch |
-| Protection before choosing | Until a choice is made, the session exposes no recognised browser tools to the agent |
-| On-demand registration | Selecting BrowserWorkbench registers the 30 tools for that session only |
-| Global mode | With `toolRegistrationMode: global`, the 30 tools are registered profile-wide; the plugin does not prevent other browser tools from existing |
+| Global registration (default) | `toolRegistrationMode: global`: the 30 tools are registered profile-wide, so every new session can use them without a first-use pick |
 | Safe downgrade | If global mode starts while tools with the `browser_` prefix already exist, it falls back to per-session choice |
-| Tool shadowing | Selecting BrowserWorkbench shadows same-named tools for that session and hides third-party browser-only tools |
-| Release resources | Drops the CDP connection and clears that session's views and debug state; the user's tabs stay open and the session lock remains |
+| Per-session choice (optional) | `session-select` remains in the implementation, but the settings page no longer offers it — tests and legacy configs only. Under it, a formal session picks BrowserWorkbench or another browser toolset before its first browser use |
+| Session lock | Under `session-select`, the browser plugin cannot change within a session; start a new session to switch |
+| On-demand registration | Under `session-select`, selecting BrowserWorkbench registers the 30 tools for that session only |
+| Release resources | Drops the browser connection and clears that session's views and debug state; the session lock remains |
 | Restart recovery | The saved choice is restored after a DSH restart or agent-scope replacement |
-| Session-scoped state | Choice, registration, view refs, debug state, and artifacts are stored per session and never overwrite each other |
-| Shared site state | Cookies, LocalStorage, IndexedDB, Cache Storage, HTTP cache, Service Worker, and permissions all stay in the user's browser and are shared across sessions |
-| Shared browser tabs | The tool surface only connects over external CDP: several sessions attached to the same endpoint see the same tabs, and the plugin does not split or copy tabs per session |
+| Automatic launch | With `providerMode: auto` (default), the first browser tool call in a session launches that session's dedicated Chromium; no manual connect step |
+| Session isolation | Every session gets its own user-data-dir; pages, cookies, login state, and browser process are not shared |
+| Optional external connection | You can still connect a Chrome/Edge instance running with remote debugging; `providerMode: external` allows only that path |
+| Session-scoped state | Registration, view refs, debug state, and artifacts are stored per session and never overwrite each other |
+| Shared site state | Only when several sessions attach to the same external browser: cookies, LocalStorage, IndexedDB, Cache Storage, HTTP cache, Service Worker, and permissions are shared by that browser |
+| Shared browser tabs | Only with `external-cdp` on the same endpoint: several sessions see the same tabs, and the plugin does not split or copy tabs per session |
 | Isolated debug state | Debugger, request interception, refs, snapshots, and live frames are stored per session |
 | Isolated files | Artifacts, takeover, and controller state are per-session |
 | Page provenance | Only active in managed `shared-persistent` mode: `window.open()` pages inherit the owner and pages with unknown provenance are closed (that mode is unreachable from the tool surface) |
@@ -266,7 +270,7 @@ Upgrading from the historical `dsh-browser-tools` package? Remove the old packag
 src/
 ├── application/   tool definitions (30 browser_* tools), config schema, safety policy, metadata
 ├── cdp/           CDP sessions and protocol-level events (debugger / fetch / screencast / profile / script)
-├── client/        React 19 panel UI: components, hooks, utils, panel-controller
+├── client/        React 19 UI: live panel (tabs, address bar, live view, takeover) and the Settings → 浏览器 section
 ├── compat/        DSH Connection/RPC adapter, message and RPC dispatch
 ├── controller/    session-level controller arbitration (browser-controller)
 ├── diagnostics/   forensics: flight recorder, context/build identity, incidents, Source Maps
@@ -279,11 +283,11 @@ src/
 ├── session/       session keys, exclusive task queue, tab restoration
 └── view/          viewports, adaptive reflow, split view, screencast sync
 
-tests/             covers 12 domains (no dedicated test dirs for compat or controller yet)
+tests/             covers 13 domains (compat has no dedicated test dir yet)
 scripts/verify/    e2e verification scripts and local fixture site
 ```
 
-Source size: `src/` is 138 files and roughly 16.3k non-empty lines; `tests/` is 55 files and 170 cases. Architecture constraints live in [AGENTS.md](./AGENTS.md) and [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md).
+Source size: `src/` is 139 files and roughly 16.3k non-empty lines; `tests/` is 57 files and 178 cases. Architecture constraints live in [AGENTS.md](./AGENTS.md) and [DIRECTORY_SPECIFICATION.md](./DIRECTORY_SPECIFICATION.md).
 
 ## Development and verification
 
@@ -291,7 +295,7 @@ Three static gates must pass before a commit:
 
 ```powershell
 npm run typecheck    # tsc --noEmit, 0 errors
-npm test             # all 170 unit tests pass
+npm test             # all 178 unit tests pass
 npm run build        # tsdown, produces lib/index.mjs and lib/client.js
 ```
 
@@ -302,41 +306,41 @@ npm run verify:tools       # runtime layer: 145 assertions over the 30 browser_*
 npm run verify:extensions  # extension layer: MV3 local install, registry persistence, start/stop/uninstall, popup, bad input (19)
 npm run verify:managed     # managed layer: executablePath/headless, three proxy modes, HTTPS CONNECT, offline install (16)
 npm run verify:sandbox     # boot a separate DSH_HOME instance and print the tokenised URL
-npm run verify:instance    # instance layer: client bundle, composer controls, auth RPC round trip (10)
-npm run verify:panel       # panel layer: formal session -> controller activation -> 9 views -> provider -> live view -> takeover (33)
+npm run verify:instance    # instance layer: client bundle, auth RPC round trip (10)
+npm run verify:panel       # panel layer: formal session -> settings binding -> live view -> takeover (script still asserts the old composer menu and nine views; rewrite in progress)
 npm run verify:config      # config layer: real runtime effect of 13 options
-npm run verify:rpc         # RPC/persistence layer: auth boundary, envelope contract, controller choice across reloads (16)
+npm run verify:rpc         # RPC/persistence layer: auth boundary, envelope contract, controller choice across reloads (16; some assertions still target the old UI, rewrite in progress)
 npm run verify:persist -- --phase=prepare   # claim the controller and record a marker
 npm run verify:persist -- --phase=verify    # re-check after a host restart (needs a fresh token)
 ```
 
-The full layered verification record, the 7 real defects fixed this round, and the unreachable paths are documented in [VALIDATION.en.md](./VALIDATION.en.md) sections 14 and 15.
+`scripts/verify/e2e-panel.mjs` and `scripts/verify/e2e-rpc.mjs` still assert the old composer menu and the nine-view panel, and both are being rewritten for the new UI; do not count those two layers as verified until they land. The rest of the layered verification record, the 7 real defects fixed this round, and the unreachable paths are documented in [VALIDATION.en.md](./VALIDATION.en.md) sections 14 and 15.
 
 ### Verification results
 
 | Layer | Entry point | Result |
 | --- | --- | --- |
-| Static gates | `typecheck` / `test` / `build` | 0 errors / 170 passing / build clean |
+| Static gates | `typecheck` / `test` / `build` | 0 errors / 178 passing / build clean |
 | Runtime | `verify:tools` | 145/145 |
 | Instance | `verify:instance` | 10/10 |
-| Real UI panel | `verify:panel` | 33/33 |
+| Real UI panel | `verify:panel` | rewrite pending (old nine-view assertions no longer valid) |
 | Extensions | `verify:extensions` | 19/19 |
 | Managed launch + proxies/HTTPS | `verify:managed` | 16/16 |
 | Config | `verify:config` | 13/13 |
-| RPC | `verify:rpc` | 16/16 |
+| RPC | `verify:rpc` | rewrite pending (old composer-menu assertions) |
 | Persistence | `verify:persist` | prepare 7/7 + verify 5/5 |
 
-The runtime layer uses real Chrome (`155.0.8059.85`) connected over `external-cdp` to the local fixture site. The numbers come from the run reports under `.sandbox/reports/` on this machine and will change when re-run elsewhere. The recorder keeps a 180-second window by default (`retentionMs`); events older than the window are evicted per the retention policy. That is an algorithm boundary, not a long-soak stability test.
+The runtime layer uses real Chrome (`155.0.8059.85`) connected over `external-cdp` to the local fixture site. The numbers come from the run reports under `.sandbox/reports/` on this machine and will change when re-run elsewhere. Event recording (`browser_diagnose`'s Off / Rolling / Deep tiers) keeps a 180-second window by default (`retentionMs`); events older than the window are evicted per the retention policy. That is an algorithm boundary, not a long-soak stability test.
 
 ## Known boundaries
 
 These are real behaviours intentionally kept in this version, not TODOs:
 
-- **Managed launch is not on the tool surface**: `browser_provider` only accepts `external-cdp`, so the only `providerBinding` the tool surface can write is `external-cdp` (returning to `disconnected` on release). Two other bindings are written by the managed launch path and are unreachable from the tool surface: `shared-persistent` (the branch that tracks `window.open` page ownership) and `isolated-persistent`; `isolated-managed` currently exists only as a type declaration with no assignment site. Managed settings such as `executablePath`, `headless`, and proxies only take effect in protected runtime methods and are exercised by `verify:managed`.
+- **Managed launch is on the tool surface**: with the default `providerMode: auto`, `browser_provider`'s `managed` launches a dedicated persistent Chromium for this session (`isolated-persistent`), while `external-cdp` still attaches to an existing Chrome/Edge. `shared-persistent` (the `window.open` page-ownership branch) remains internal, and `isolated-managed` is only a type declaration with no assignment site. `executablePath`, `headless`, proxy, and Chromium download settings all apply to the automatic launch.
 - **Managed download metadata lags**: `KNOWN_ARCHIVES` in `src/provider/chromium-manager.ts` only lists `149.0.7827.55`, while playwright-core 1.64.1 expects `156.0.8078.4`; with missing metadata the download fails closed. That is a deliberate integrity policy, not a bug.
 - **`browser_live_view adaptive` needs the panel**: without an open panel there is no size report, so the call returns the recoverable `ADAPTIVE_SIZE_UNAVAILABLE`.
-- **Extension tools are read-only**: on the agent side `browser_extensions` exposes only the `list` action and reads a historical registry snapshot; there is no install or start/stop tool. The panel RPCs also accept `install` / `enable` / `disable` / `uninstall` / `apply` plus `open_popup` / `close_popup`, but in external CDP mode they only change the persisted registry (`uninstall` also deletes the unpacked directory) and mark entries as pending restart (`loaded:false`); nothing is loaded into the user's connected browser. Only the managed path where the plugin launches Chromium itself actually loads them. Installing extensions therefore still means operating the connected browser directly.
-- **`subagentInteractive` defaults to `false`**: delegated sub-sessions are rejected when they call interactive tools such as navigation, clicking, or dialogs. The restriction assumes the tool is either registered globally by this plugin or owned by an active session controller; under the default per-session mode a sub-session never receives these tools at all, so the rejection is only observable in `global` mode.
+- **Extension tools are read-only**: on the agent side `browser_extensions` exposes only the `list` action and reads a historical registry snapshot; there is no install or start/stop tool. The RPC surface also accepts `install` / `enable` / `disable` / `uninstall` / `apply` plus `open_popup` / `close_popup` (the client no longer ships an extension-management view), but in external CDP mode they only change the persisted registry (`uninstall` also deletes the unpacked directory) and mark entries as pending restart (`loaded:false`); nothing is loaded into the user's connected browser. The automatic launch path does not load extensions either. Installing extensions therefore still means operating the browser directly.
+- **`subagentInteractive` defaults to `false`**: delegated sub-sessions are rejected when they call interactive tools such as navigation, clicking, or dialogs. The restriction assumes the tool is registered globally by this plugin or owned by an active session controller; registration is global by default now, so the restriction applies by default.
 - **Out of scope**: DRM, Native Messaging, Manifest V2, CAPTCHA/verification challenges, Passkey/WebAuthn, anti-automation policies on arbitrary sites, and the business correctness of the app under test.
 
 ## Compatibility

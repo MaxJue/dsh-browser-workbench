@@ -55,7 +55,16 @@ This repository follows a strict domain-driven architecture and code organizatio
 
 Before finishing any task, run the full verification pipeline:
 1. `npm run typecheck` (`tsc --noEmit -p tsconfig.json`) -> **Must have 0 errors**.
-2. `npm test` (`node --experimental-strip-types --test tests/**/*.test.mjs`) -> **100% of unit tests must pass (0 failed)**.
+2. `npm test` (`node --experimental-strip-types --test tests/**/*.test.mjs`) -> **100% of unit tests must pass (178/178 passed, 0 failed)**.
 3. `npm run build` (`tsdown`) -> **Must build cleanly** (`lib/client.js` and `lib/index.mjs`).
 
 Refer to [`DIRECTORY_SPECIFICATION.md`](./DIRECTORY_SPECIFICATION.md) for full architectural details.
+
+---
+
+## 6. Reply Style (User Preference, Non-Negotiable)
+
+- **先做事，再说话**：默认直接改代码/执行命令，不要先写长篇分析、方案对比或论证。
+- **回复极简**：结论 1-3 句；改动只列文件与关键点；不复述代码，不解释显而易见的东西。
+- **只在两种情况下展开**：用户明确问「为什么」；或遇到真正的阻塞（需要用户操作/授权）。阻塞说明也不超过 5 行。
+- 中文回复，不用 emoji，不写「好的」「我来帮你」这类客套开场。

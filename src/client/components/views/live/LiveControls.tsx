@@ -1,5 +1,5 @@
 import css from '../../../panel.module.css'
-import type { BrowserLiveViewMode, BrowserPanelSnapshot, BrowserPanelView } from '../../../../domain/protocol.ts'
+import type { BrowserLiveViewMode, BrowserPanelSnapshot } from '../../../../domain/protocol.ts'
 
 export interface LiveControlsProps {
   snapshot: BrowserPanelSnapshot
@@ -13,11 +13,11 @@ export interface LiveControlsProps {
   onResetSplitRatio: () => void
   onToggleTakeover: () => void
   onToggleShareDrag: () => void
-  onOpenDiagnostic: (view: BrowserPanelView) => void
-  onRecorderAction: (action: 'start' | 'pause' | 'resume' | 'mark' | 'clear' | 'stop', mode?: 'rolling' | 'deep') => void
   onClosePanel: () => void
 }
 
+// 实况控制只服务人：看画面、切显示、双页比对、接管、拖拽分享。agent 向的诊断与
+// 录制操作属于工具能力，不在这里重复。
 export function LiveControls({
   snapshot,
   splitOrientation,
@@ -30,8 +30,6 @@ export function LiveControls({
   onResetSplitRatio,
   onToggleTakeover,
   onToggleShareDrag,
-  onOpenDiagnostic,
-  onRecorderAction,
   onClosePanel,
 }: LiveControlsProps) {
   const userTakeover = snapshot.control?.owner === 'user'
@@ -46,43 +44,6 @@ export function LiveControls({
             {snapshot.liveView === undefined
               ? '等待画面尺寸'
               : `当前画面 ${snapshot.liveView.width}×${snapshot.liveView.height}${snapshot.liveView.reflowed ? `，重排 ${snapshot.liveView.reflowedElements}` : ''}`}
-          </span>
-          <span>
-            {snapshot.diagnostic?.active
-              ? `${snapshot.diagnostic.debugSession?.debugSessionId ?? 'Debug Session'} · ${snapshot.diagnostic.recording ? 'Recording' : 'Stopped'}`
-              : '未启动 Debug Session'}
-          </span>
-          <span>
-            {snapshot.diagnostic === undefined
-              ? '等待诊断状态'
-              : `${snapshot.diagnostic.currentIdentity.viewId} · D${snapshot.diagnostic.currentIdentity.documentGeneration} · ${snapshot.diagnostic.currentIdentity.navigationId}`}
-          </span>
-          <span>
-            {snapshot.diagnostic === undefined
-              ? '等待 Viewport'
-              : `Viewport ${snapshot.diagnostic.currentIdentity.viewport.width}×${snapshot.diagnostic.currentIdentity.viewport.height} · DPR ${snapshot.diagnostic.currentIdentity.viewport.deviceScaleFactor}${snapshot.diagnostic.currentIdentity.viewport.mobile ? ' · Mobile' : ''}`}
-          </span>
-          <span>
-            {snapshot.diagnostic?.synchronization.status === 'same-view'
-              ? '页面与证据同 View'
-              : snapshot.diagnostic?.synchronization.status === 'mismatch'
-                ? '页面与证据身份不一致'
-                : '暂无调试会话绑定'}
-          </span>
-          <span>
-            {snapshot.diagnostic?.debugSession?.currentCheckpoint === undefined
-              ? '暂无 Checkpoint'
-              : `当前 ${snapshot.diagnostic.debugSession.currentCheckpoint.checkpointId} · ${snapshot.diagnostic.debugSession.currentCheckpoint.label}`}
-          </span>
-          <span>
-            {snapshot.diagnostic?.unread.total === 0
-              ? '无未读异常'
-              : `未读异常 ${snapshot.diagnostic?.unread.total ?? 0} · Console ${snapshot.diagnostic?.unread.consoleErrors ?? 0} · Network ${snapshot.diagnostic?.unread.failedRequests ?? 0}`}
-          </span>
-          <span>
-            {snapshot.diagnostic === undefined
-              ? '等待 Recorder 状态'
-              : `Recorder ${snapshot.diagnostic.recorder.mode} · ${snapshot.diagnostic.recorder.status} · ${snapshot.diagnostic.recorder.eventCount} events · ${snapshot.diagnostic.recorder.byteSize} bytes`}
           </span>
         </div>
         <div className={css.liveControlActions}>
@@ -182,49 +143,6 @@ export function LiveControls({
           >
             {shareDragArmed ? '等待拖拽画面' : '拖拽分享画面'}
           </button>
-          <button
-            type="button"
-            aria-label="打开诊断工作台"
-            title="查看当前 Debug Session、Action、Checkpoint 和 Incident"
-            onClick={() => onOpenDiagnostic('diagnostic')}
-          >
-            打开诊断
-          </button>
-          {snapshot.diagnostic?.recorder.mode === 'off' && (
-            <button type="button" onClick={() => onRecorderAction('start', 'rolling')}>
-              开启 Rolling
-            </button>
-          )}
-          {snapshot.diagnostic?.recorder.mode !== 'deep' && (
-            <button type="button" onClick={() => onRecorderAction('start', 'deep')}>
-              开启 Deep
-            </button>
-          )}
-          {snapshot.diagnostic?.recorder.status === 'recording' && (
-            <button type="button" onClick={() => onRecorderAction('pause')}>
-              暂停 Recorder
-            </button>
-          )}
-          {snapshot.diagnostic?.recorder.status === 'paused' && (
-            <button type="button" onClick={() => onRecorderAction('resume')}>
-              继续 Recorder
-            </button>
-          )}
-          {snapshot.diagnostic?.recorder.mode !== 'off' && (
-            <button type="button" onClick={() => onRecorderAction('mark')}>
-              刚才出问题了
-            </button>
-          )}
-          {snapshot.diagnostic?.recorder.mode !== 'off' && (
-            <button type="button" onClick={() => onRecorderAction('clear')}>
-              清空未冻结记录
-            </button>
-          )}
-          {snapshot.diagnostic?.recorder.mode !== 'off' && (
-            <button type="button" onClick={() => onRecorderAction('stop')}>
-              关闭 Recorder
-            </button>
-          )}
           <button type="button" aria-label="关闭右侧浏览器" title="关闭右侧浏览器" onClick={onClosePanel}>
             关闭右侧浏览器
           </button>

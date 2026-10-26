@@ -455,7 +455,8 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
   }
 
   async diagnose(identity: Identity, signal: AbortSignal, input: BrowserDiagnoseInput): Promise<ToolOutput> {
-    return this.withSession(identity, signal, session => this.diagnoseAction(session, input))
+    const readOnly = input.action === 'status' || input.action === 'recorder_status'
+    return this.withSession(identity, signal, session => this.diagnoseAction(session, input), { autoLaunch: !readOnly })
   }
 
   async networkControl(identity: Identity, signal: AbortSignal, input: BrowserNetworkInput): Promise<ToolOutput> {
@@ -501,11 +502,11 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
   }
 
   async liveView(identity: Identity, signal: AbortSignal, input: BrowserLiveViewInput): Promise<ToolOutput> {
-    return this.withSession(identity, signal, session => this.liveViewAction(session, input))
+    return this.withSession(identity, signal, session => this.liveViewAction(session, input), { autoLaunch: input.action !== 'status' })
   }
 
   async splitView(identity: Identity, signal: AbortSignal, input: BrowserSplitViewInput): Promise<ToolOutput> {
-    return this.withSession(identity, signal, session => this.splitViewAction(session, input))
+    return this.withSession(identity, signal, session => this.splitViewAction(session, input), { autoLaunch: input.action !== 'status' })
   }
 
   async evaluate(identity: Identity, signal: AbortSignal, input: BrowserEvaluateInput): Promise<ToolOutput> {
@@ -518,7 +519,7 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
   }
 
   async takeover(identity: Identity, signal: AbortSignal, input: BrowserTakeoverInput): Promise<ToolOutput> {
-    return this.withSession(identity, signal, session => this.takeoverAction(session, input))
+    return this.withSession(identity, signal, session => this.takeoverAction(session, input), { autoLaunch: input.action !== 'status' })
   }
 }
 

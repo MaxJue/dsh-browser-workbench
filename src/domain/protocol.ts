@@ -1,6 +1,6 @@
 export type BrowserPanelView = 'live' | 'diagnostic' | 'console' | 'network' | 'debugger' | 'performance' | 'provider' | 'extensions' | 'emulation'
 
-export type BrowserToolRegistrationMode = 'global' | 'session-select'
+export type BrowserToolRegistrationMode = 'global' | 'session-select' | 'disabled'
 export type BrowserControllerMode = 'unselected' | 'other' | 'dsh-browser-tools'
 export type BrowserControllerStatus = 'inactive' | 'activating' | 'active' | 'releasing' | 'error'
 
@@ -16,6 +16,22 @@ export interface BrowserControllerSnapshot {
   canSwitchNow: boolean
   blockers: string[]
   error?: string
+  // 上一次资源释放成功的时刻，仅用于向用户提供即时回执，不代表当前一定没有浏览器资源。
+  releasedAt?: number
+}
+
+/**
+ * 面板关闭时的只读活动探测结果：只回答「当前 Session 是否已经有值得展示的浏览器内容」。
+ * 它不得分配 View、启动 screencast 或推进任何游标，否则关闭状态下的轮询会带来真实副作用。
+ */
+export interface BrowserPanelActivity {
+  available: boolean
+  tabCount: number
+  activeViewId?: string
+  activeUrl?: string
+  // 活跃页面的代次：agent 在同一地址上点击、滚动或读快照时也会推进，供客户端判断“有新内容”。
+  navigationGeneration?: number
+  snapshotGeneration?: number
 }
 
 export type BrowserNetworkAction = 'enable' | 'disable' | 'list_paused' | 'continue' | 'abort' | 'fulfill' | 'body' | 'replay'

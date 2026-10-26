@@ -368,8 +368,13 @@ export class BrowserRuntimeServices extends BrowserRuntimeDiagnosticServices {
       return { ok: true, action: 'provider', viewId: session.activeViewId, data: asData(providerState(session)) }
     }
     if (input.action === 'connect') {
+      if (input.provider === 'managed') {
+        if (session.provider !== 'disconnected') fail('INVALID_ARGS', 'browser is already connected; disconnect it before switching providers')
+        await this.ensureAutoProvider(session, { force: true })
+        return { ok: true, action: 'provider_connect', viewId: session.activeViewId, data: asData(providerState(session)) }
+      }
       if (input.provider !== undefined && input.provider !== 'external-cdp') {
-        fail('UNSUPPORTED_PROVIDER', '只支持连接已开启远程调试的 Chrome 或 Edge')
+        fail('UNSUPPORTED_PROVIDER', '连接现有浏览器只支持 external-cdp；本会话浏览器由 managed 自动启动')
       }
       const rawEndpoint = input.endpoint?.trim()
       if (rawEndpoint === undefined || rawEndpoint === '') fail('INVALID_ARGS', 'provider connect requires endpoint')
@@ -495,7 +500,7 @@ export class BrowserRuntimeServices extends BrowserRuntimeDiagnosticServices {
     })
   }
 
-  protected async withSession<T>(identity: Identity, signal: AbortSignal, operation: (session: SessionState) => Promise<T>): Promise<T> {
+  protected async withSession<T>(identity: Identity, signal: AbortSignal, operation: (session: SessionState) => Promise<T>, options: { autoLaunch?: boolean } = {}): Promise<T> {
     requireActive(signal)
     const session = await this.createSession(identity)
     const previous = session.queue
@@ -510,6 +515,7 @@ export class BrowserRuntimeServices extends BrowserRuntimeDiagnosticServices {
     }]))
     const beforeActive = beforeViews.get(session.activeViewId)
     try {
+      if (options.autoLaunch !== false) await this.ensureAutoProvider(session)
       requireActive(signal)
       const result = await operation(session)
       const toolOutput = typeof result === 'object' && result !== null && 'ok' in result && 'action' in result ? result as ToolOutput : undefined

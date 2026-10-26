@@ -26,6 +26,8 @@ export interface BrowserControllerSnapshot {
   canSwitchNow: boolean
   blockers: string[]
   error?: string
+  // 上一次资源释放成功的时刻，仅用于向用户提供即时回执，不代表当前一定没有浏览器资源。
+  releasedAt?: number
 }
 
 interface SessionControllerState {
@@ -34,6 +36,7 @@ interface SessionControllerState {
   status: BrowserControllerStatus
   generation: number
   activatedAt?: number
+  releasedAt?: number
   conflictingTools: string[]
   shadowedTools: string[]
   restrictedTools: string[]
@@ -71,7 +74,7 @@ export interface BrowserControllerStoreOptions {
   config: BrowserControllerConfig
   toolDefinitions: readonly ToolDefinition[]
   registerTools(agent: Agent, definitions: readonly ToolDefinition[]): () => void
-  releaseRuntime(sessionId: string, sessionCreatedAt: number): Promise<void>
+  releaseRuntime(sessionId: string, sessionCreatedAt: number): Promise<boolean>
   isOwnedTool(name: string): boolean
 }
 
@@ -104,6 +107,15 @@ export class BrowserControllerStore {
 
   private storagePath(sessionId: string): string {
     return join(this.options.storageRoot, controllerFileName(sessionId))
+  }
+
+  /** 只读列出已绑定控制器状态的 Session，供设置页的浏览器绑定总览使用。 */
+  list(): Array<{ sessionId: string; createdAt?: number; snapshot: BrowserControllerSnapshot }> {
+    return [...this.states.values()].map(state => ({
+      sessionId: state.sessionId,
+      ...(state.agent === undefined ? {} : { createdAt: state.agent.session.header.createdAt }),
+      snapshot: this.snapshot(state.sessionId),
+    }))
   }
 
   private state(sessionId: string): SessionControllerState {
@@ -378,6 +390,7 @@ export class BrowserControllerStore {
       canSwitchNow: state.mode === 'unselected' && blockers.length === 0,
       blockers,
       ...(state.error === undefined ? {} : { error: state.error }),
+      ...(state.releasedAt === undefined ? {} : { releasedAt: state.releasedAt }),
     }
   }
 
@@ -422,12 +435,18 @@ export class BrowserControllerStore {
         state.restrictionDisposer = agent.ctx.tools.restrict({ deny: state.restrictedTools })
       }
       state.guardDisposer = agent.ctx.tools.guard(exec => {
-        if (state.status === 'releasing' && this.options.isOwnedTool(exec.name)) return 'DSH BrowserWorkbench 正在释放浏览器资源，新的浏览器工具调用已拒绝。'
+        if (this.options.isOwnedTool(exec.name)) {
+          // 释放后再次执行浏览器工具意味着资源会被重新创建，上一次释放回执不再代表最新状态。
+          state.releasedAt = undefined
+          if (state.status === 'releasing') return 'DSH BrowserWorkbench 正在释放浏览器资源，新的浏览器工具调用已拒绝。'
+        }
         return undefined
       })
       state.mode = 'dsh-browser-tools'
       state.status = 'active'
       state.activatedAt = Date.now()
+      // 重新激活后不再展示上一次释放的回执，避免和当前新资源状态混淆。
+      state.releasedAt = undefined
       if (!restoring) {
         state.generation += 1
         await this.persist(state)
@@ -514,12 +533,18 @@ export class BrowserControllerStore {
         state.status = 'releasing'
         state.error = undefined
         try {
-          await this.options.releaseRuntime(sessionId, agent.session.header.createdAt)
+          const released = await this.options.releaseRuntime(sessionId, agent.session.header.createdAt)
           if (state.agent !== agent || state.bindingGeneration !== bindingGeneration) throw new Error('当前 Session 的 Agent Scope 已更新，旧 Scope 不得完成资源释放。')
+          if (released !== true) {
+            // Runtime 已经没有该 Session 的浏览器资源，不能假装释放成功，否则用户会反复点击却没有实际变化。
+            state.status = 'active'
+            throw new Error('当前 Session 没有正在使用的 BrowserWorkbench 资源。')
+          }
           // 只释放 BrowserWorkbench 自己的页面和浏览器资源。工具选择、同名遮蔽和第三方限制继续保留，
           // 这样同一个 Session 之后仍只能使用 BrowserWorkbench，不会混入另一套浏览器状态。
           state.status = 'active'
           state.activatedAt = undefined
+          state.releasedAt = Date.now()
           try {
             agent.inject(createBrowserNotice(
               '当前 Session 的 BrowserWorkbench 浏览器资源已释放。浏览器工具选择仍保持锁定；后续再次调用 BrowserWorkbench 工具时会创建新的 BrowserWorkbench 页面。需要使用其他浏览器插件时，请新建 Session。',

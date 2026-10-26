@@ -1,6 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { SessionId } from '@deepseek-ai/dsh-session'
 import { registerAuthenticatedRpc } from './dsh-compat.ts'
+import { assertCdpEndpoint } from '../domain/policy.ts'
+import { browserChoiceOf, browserSettingsWriteState, writeBrowserChoice } from './config-editor.ts'
+import type { BrowserToolChoice } from './config-editor.ts'
 import { createBrowserNotice } from './dsh-message.ts'
 import type { BrowserControllerSnapshot, BrowserControllerStore } from '../controller/browser-controller.ts'
 import type { BrowserRuntime } from '../runtime/runtime.ts'
@@ -46,7 +49,14 @@ import {
 
 export interface BrowserRpcOptions {
   getController: () => BrowserControllerStore | undefined
-  getEffectiveToolRegistrationMode: () => 'global' | 'session-select'
+  getEffectiveToolRegistrationMode: () => 'global' | 'session-select' | 'disabled'
+  getConfiguredToolRegistrationMode: () => 'global' | 'session-select' | 'disabled'
+  getConfiguredProviderMode: () => 'auto' | 'external'
+  getConfiguredExternalEndpoint: () => string | undefined
+}
+
+function isBrowserToolChoice(value: unknown): value is BrowserToolChoice {
+  return value === 'workbench' || value === 'existing' || value === 'off'
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -65,14 +75,51 @@ export function bindBrowserRpc(ctx: Context, runtime: BrowserRuntime, options: B
   ctx.inject(['connection'], (connectionCtx) => {
     return registerAuthenticatedRpc(connectionCtx.connection, '/api/browser-tools', 'browser-tools', async (endpoint, payload) => {
       try {
-        if (!isRecord(payload) || typeof payload.sessionId !== 'string' || payload.sessionId.trim() === '') return rpcFailure('browser panel requires a non-empty sessionId')
-        const sessionId = payload.sessionId
+        if (!isRecord(payload)) return rpcFailure('browser panel requires a payload object')
         const controller = options.getController()
         const effectiveToolRegistrationMode = options.getEffectiveToolRegistrationMode()
 
+        // 设置页的绑定总览不需要 Session 上下文：它列出所有已绑定控制器的 Session。
+        if (endpoint === 'controller_overview') {
+          const writeState = browserSettingsWriteState(ctx)
+          const configuredMode = options.getConfiguredToolRegistrationMode()
+          const configuredProviderMode = options.getConfiguredProviderMode()
+          return rpcSuccess({
+            registrationMode: effectiveToolRegistrationMode,
+            configuredMode,
+            providerMode: configuredProviderMode,
+            choice: browserChoiceOf(configuredMode, configuredProviderMode),
+            ...(options.getConfiguredExternalEndpoint() === undefined ? {} : { endpoint: options.getConfiguredExternalEndpoint() }),
+            configurable: writeState.configurable,
+            ...(writeState.message === undefined ? {} : { configurableMessage: writeState.message }),
+            sessions: controller?.list() ?? [],
+          })
+        }
+
+        // 绑定写回 Profile 补丁并触发热重载，同样不需要 Session 上下文。
+        if (endpoint === 'controller_set_browser_choice') {
+          if (!isBrowserToolChoice(payload.choice)) return rpcFailure('unknown browser tool choice')
+          let externalEndpoint: string | undefined
+          if (payload.choice === 'existing') {
+            const raw = typeof payload.endpoint === 'string' ? payload.endpoint.trim() : ''
+            if (raw === '') return rpcFailure('连接现有 Chrome/Edge 需要填写调试端点，例如 http://127.0.0.1:9222')
+            try {
+              externalEndpoint = assertCdpEndpoint(raw).href
+            } catch (cause) {
+              return rpcFailure(cause instanceof Error ? cause.message : String(cause))
+            }
+          }
+          const result = await writeBrowserChoice(ctx, payload.choice, externalEndpoint)
+          if (!result.wrote) return rpcFailure(result.message ?? '浏览器绑定未能写回 Profile 补丁')
+          return rpcSuccess({ choice: payload.choice })
+        }
+
+        if (typeof payload.sessionId !== 'string' || payload.sessionId.trim() === '') return rpcFailure('browser panel requires a non-empty sessionId')
+        const sessionId = payload.sessionId
+
         if (endpoint === 'controller_status') {
           await controller?.waitUntilReady(sessionId)
-          const value: BrowserControllerSnapshot & { registrationMode: 'global' | 'session-select' } = effectiveToolRegistrationMode === 'global'
+          const value: BrowserControllerSnapshot & { registrationMode: 'global' | 'session-select' | 'disabled' } = effectiveToolRegistrationMode === 'global'
             ? {
                 registrationMode: 'global',
                 mode: 'dsh-browser-tools',
@@ -85,9 +132,9 @@ export function bindBrowserRpc(ctx: Context, runtime: BrowserRuntime, options: B
                 canSwitchNow: false,
                 blockers: ['global-registration-mode'],
               }
-            : {
-                registrationMode: 'session-select',
-                ...(controller?.snapshot(sessionId) ?? {
+            : effectiveToolRegistrationMode === 'disabled'
+              ? {
+                  registrationMode: 'disabled',
                   mode: 'unselected',
                   status: 'inactive',
                   generation: 0,
@@ -96,13 +143,27 @@ export function bindBrowserRpc(ctx: Context, runtime: BrowserRuntime, options: B
                   restrictedTools: [],
                   selectionLocked: false,
                   canSwitchNow: false,
-                  blockers: ['controller-not-ready'],
-                }),
-              }
+                  blockers: ['browser-tools-disabled'],
+                }
+              : {
+                  registrationMode: 'session-select',
+                  ...(controller?.snapshot(sessionId) ?? {
+                    mode: 'unselected',
+                    status: 'inactive',
+                    generation: 0,
+                    conflictingTools: [],
+                    shadowedTools: [],
+                    restrictedTools: [],
+                    selectionLocked: false,
+                    canSwitchNow: false,
+                    blockers: ['controller-not-ready'],
+                  }),
+                }
           return rpcSuccess(value)
         }
         if (endpoint === 'controller_activate' || endpoint === 'controller_select_other' || endpoint === 'controller_release') {
-          if (effectiveToolRegistrationMode !== 'session-select' || controller === undefined) return rpcFailure('Session browser selection requires session-select registration')
+          if (effectiveToolRegistrationMode === 'disabled') return rpcFailure('当前已把浏览器能力交给其他插件，DSH BrowserWorkbench 未注册任何工具')
+          if (effectiveToolRegistrationMode !== 'session-select' || controller === undefined) return rpcFailure('当前注册模式不支持按会话选择浏览器工具')
           const agent = ctx.agents.get(SessionId(sessionId))
           if (agent === undefined) return rpcFailure('browser selection requires a live DSH agent session')
           if (agent.session.header.origin === 'subagent') return rpcFailure('delegated sessions cannot select browser tools')
@@ -114,9 +175,11 @@ export function bindBrowserRpc(ctx: Context, runtime: BrowserRuntime, options: B
           return rpcSuccess({ registrationMode: 'session-select', ...result })
         }
         await controller?.waitUntilReady(sessionId)
+        if (effectiveToolRegistrationMode === 'disabled') return rpcFailure('当前已停用 DSH BrowserWorkbench，浏览器面板不可用')
         if (effectiveToolRegistrationMode === 'session-select' && controller?.isActive(sessionId) !== true) {
           return rpcFailure('当前 Session 尚未启用 DSH BrowserWorkbench')
         }
+        if (endpoint === 'panel_activity') return rpcSuccess(runtime.panelActivity(sessionId))
         if (endpoint === 'snapshot') {
           const view = payload.view
           if (typeof view !== 'string' || !panelViews.includes(view as BrowserPanelView)) return rpcFailure('unknown browser panel view')

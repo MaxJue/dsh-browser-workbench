@@ -1,5 +1,5 @@
 import css from '../../../panel.module.css'
-import type { BrowserLiveViewMode, BrowserPanelSnapshot, BrowserPanelView, BrowserSplitViewPane } from '../../../../domain/protocol.ts'
+import type { BrowserLiveViewMode, BrowserPanelSnapshot, BrowserSplitViewPane } from '../../../../domain/protocol.ts'
 import { LivePane } from './LivePane.tsx'
 import { LiveControls } from './LiveControls.tsx'
 import { DiagnosticOverlay } from './DiagnosticOverlay.tsx'
@@ -37,8 +37,6 @@ export interface LiveViewProps {
   onResetSplitRatio: () => void
   onToggleTakeover: () => void
   onToggleShareDrag: () => void
-  onOpenDiagnostic: (view: BrowserPanelView) => void
-  onRecorderAction: (action: 'start' | 'pause' | 'resume' | 'mark' | 'clear' | 'stop', mode?: 'rolling' | 'deep') => void
   onClosePanel: () => void
 }
 
@@ -71,8 +69,6 @@ export function LiveView({
   onResetSplitRatio,
   onToggleTakeover,
   onToggleShareDrag,
-  onOpenDiagnostic,
-  onRecorderAction,
   onClosePanel,
 }: LiveViewProps) {
   const userTakeover = snapshot.control?.owner === 'user'
@@ -104,8 +100,6 @@ export function LiveView({
         onResetSplitRatio={onResetSplitRatio}
         onToggleTakeover={onToggleTakeover}
         onToggleShareDrag={onToggleShareDrag}
-        onOpenDiagnostic={onOpenDiagnostic}
-        onRecorderAction={onRecorderAction}
         onClosePanel={onClosePanel}
       />
 

@@ -30,20 +30,23 @@
 dsh-browser-workbench/
 ├── src/
 │   ├── application/       # Cordis 工具定义、元数据、配置项与安全审批策略
-│   │   ├── browser-tools.ts    # 30+ 浏览器工具定义与参数 Schema
+│   │   ├── browser-tools.ts    # 30 个浏览器工具定义与参数 Schema
 │   │   ├── config.ts           # 插件配置项模型与 Schemastery Schema
 │   │   ├── security-policy.ts  # Pre-execute 审批与 Subagent 权限判定
 │   │   └── tool-metadata.ts    # 工具动作枚举、输出格式与验证指南
 │   ├── cdp/               # Chrome DevTools Protocol 原生通信、状态模型与底层事件
 │   ├── client/            # 前端 React 19 客户端
-│   │   ├── components/    # 纯展示型/交互型组件（面板框架、导航、8大子视图）
+│   │   ├── components/    # 纯展示型/交互型组件（面板框架、导航、实况视图、设置分区）
 │   │   ├── hooks/         # 领域 Hooks（轮询流、手势、输入法代理、外部存储同步）
-│   │   ├── utils/         # 纯数学变换、剪贴板验证、快照合并纯函数
-│   │   └── core/          # 客户端状态控制器与通信 Port 适配层
+│   │   ├── utils/         # 纯数学变换、剪贴板验证、自动展开决策、回执格式化
+│   │   ├── panel-controller.ts # 客户端面板控制器
+│   │   ├── port.ts        # RPC 通信适配层
+│   │   └── settings-nav-icon.ts # 设置页导航行图标认领与替换
 │   ├── compat/            # DSH 宿主 RPC 路由分发器与消息协议兼容层
 │   │   ├── rpc-dispatcher.ts   # /api/browser-tools 认证路由分发处理
 │   │   ├── dsh-compat.ts       # 宿主 RPC 注册适配
-│   │   └── dsh-message.ts      # 浏览器通知消息封装
+│   │   ├── dsh-message.ts      # 浏览器通知消息封装
+│   │   └── config-editor.ts    # 宿主配置编辑器适配与绑定写回
 │   ├── controller/        # 会话工具仲裁、控制器状态存储与持久化
 │   ├── diagnostics/       # DOM 元素审查、上下文拓扑、飞行记录仪、事件日志与故障诊断
 │   ├── domain/            # 领域核心合同、协议定义、安全策略与统一错误模型 (无副作用)
@@ -76,7 +79,7 @@ dsh-browser-workbench/
 | **`src/page/`** | 导航流水线、网络拦截控制、Fetch 暂停恢复、对话框 | `src/domain/`, `src/cdp/` | 严禁绕过 `CdpState` 直接私自创建 CDP 会话 |
 | **`src/session/`** | 标签页恢复模型、会话排它锁、Session Key 派生 | `src/domain/` | 严禁处理复杂的页面渲染副作用；锁释放必须放 `finally` |
 | **`src/extensions/`** | CRX3 解析与解包、扩展清单解析、扩展弹窗管理 | `src/domain/`, `src/cdp/` | 严禁直接写入宿主受保护目录 |
-| **`src/provider/`** | 外部 CDP 端口连接、Artifact 磁盘管理、Profile 持久化 | `src/domain/`, `src/cdp/` | 严禁默认启动本地无头 Chromium 模式 |
+| **`src/provider/`** | 外部 CDP 端口连接、每 Session 持久化浏览器启动、Artifact 磁盘管理、Profile 持久化 | `src/domain/`, `src/cdp/` | 严禁复用用户日常浏览器 Profile 或跨 Session 共享自动启动的浏览器进程 |
 | **`src/diagnostics/`** | DOM 审查、故障定位、飞行记录仪、事件时间线 | `src/domain/`, `src/cdp/` | 严禁在高频诊断快照中触发耗时网络抓取 |
 | **`src/runtime/`** | 业务执行核心编排类（通过继承链逐步叠加各子领域服务） | 上述所有子领域模块 | **严禁平铺业务实现，单文件严格 < 700 行，严禁 `any` 签名** |
 | **`src/application/`**| 工具定义、参数 Schema、安全审批与权限过滤 | `src/domain/`, `src/runtime/`, `src/controller/` | 严禁混入宿主 HTTP 路由细节 |
@@ -147,7 +150,7 @@ dsh-browser-workbench/
 # 1. 严格 TypeScript 类型检查（0 错误）
 npm run typecheck
 
-# 2. 自动化单元测试回归（145 项全部通过）
+# 2. 自动化单元测试回归（178 项全部通过）
 npm test
 
 # 3. 生产产物构建校验（双入口打包成功）

@@ -65,7 +65,12 @@ export function resolveConfig(config: Config): ResolvedConfig {
     chromiumDownloadSource: config.chromiumDownloadSource ?? 'auto',
     chromiumDownloadTimeoutMs: config.chromiumDownloadTimeoutMs ?? 300000,
     subagentInteractive: config.subagentInteractive ?? false,
-    toolRegistrationMode: config.toolRegistrationMode ?? 'session-select',
+    providerMode: config.providerMode ?? 'auto',
+    ...(config.externalCdpEndpoint === undefined || config.externalCdpEndpoint.trim() === ''
+      ? {}
+      : { externalCdpEndpoint: config.externalCdpEndpoint.trim() }),
+    // 默认一次注册长期可用：工具面在 Profile 层全局可见，浏览器实例仍按 Session 隔离。
+    toolRegistrationMode: config.toolRegistrationMode ?? 'global',
     sessionController: {
       conflictingToolPatterns: config.sessionController?.conflictingToolPatterns ?? [
         '^browser_',

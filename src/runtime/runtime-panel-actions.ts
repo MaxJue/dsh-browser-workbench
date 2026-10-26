@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { fail } from '../domain/errors.ts'
 import { assertUrlAllowed } from '../domain/policy.ts'
 import type { Identity, SessionState, ToolOutput, ViewState } from '../domain/types.ts'
-import type { BrowserDebuggerInput, BrowserEmulateInput, BrowserExtensionInput, BrowserFrameCursor, BrowserInputTraceUpdate, BrowserLiveViewInput, BrowserNetworkInput, BrowserPanelSnapshot, BrowserPanelTabInput, BrowserPanelView, BrowserProfileInput, BrowserProviderInput, BrowserRecorderInput, BrowserSplitViewInput, BrowserSplitViewPane, BrowserTakeoverInput, BrowserUserInput } from '../domain/protocol.ts'
+import type { BrowserDebuggerInput, BrowserEmulateInput, BrowserExtensionInput, BrowserFrameCursor, BrowserInputTraceUpdate, BrowserLiveViewInput, BrowserNetworkInput, BrowserPanelActivity, BrowserPanelSnapshot, BrowserPanelTabInput, BrowserPanelView, BrowserProfileInput, BrowserProviderInput, BrowserRecorderInput, BrowserSplitViewInput, BrowserSplitViewPane, BrowserTakeoverInput, BrowserUserInput } from '../domain/protocol.ts'
 import { classifyInputFailure, summarizeInputCharacters, type InputTraceRecord } from '../diagnostics/input-trace.ts'
 import { STANDARD_VIEWPORT } from '../view/viewport.ts'
 import { pendingSessionKey } from '../session/session-key.ts'
@@ -263,7 +263,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
 
   async panelTabs(sessionId: string, input: BrowserPanelTabInput, sessionCreatedAt?: number): Promise<ToolOutput> {
     let session = this.sessionById(sessionId)
-    let createdFromPanel = false
+    let reuseInitialView = false
     if (session !== undefined && sessionCreatedAt !== undefined && session.key === pendingSessionKey(sessionId)) {
       session = await this.adoptPendingSession({ sessionId, sessionCreatedAt, callId: 'panel-adopt', rootCallId: 'panel-adopt' })
     }
@@ -301,10 +301,16 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
           return pending
         })
       }
-      createdFromPanel = true
+      reuseInitialView = true
     }
     if (session === undefined) return { ok: false, action: 'panel_tabs', data: asData({ code: 'BROWSER_SESSION_NOT_READY', recoverable: true, message: 'browser session is not ready' }) }
-    if (session.providerBinding.kind === 'disconnected') return { ok: false, action: 'panel_tabs', data: asData({ code: 'BROWSER_NOT_CONNECTED', recoverable: true, message: '请先在 Provider 面板连接已开启远程调试的 Chrome 或 Edge。' }) }
+    if (session.providerBinding.kind === 'disconnected') {
+      if (input.action !== 'new') {
+        return { ok: false, action: 'panel_tabs', data: asData({ code: 'BROWSER_NOT_CONNECTED', recoverable: true, message: '浏览器尚未启动：直接调用浏览器工具会自动启动本 Session 独立的浏览器，也可以点击 + 新标签页启动。' }) }
+      }
+      await this.ensureAutoProvider(session, { force: true })
+      reuseInitialView = true
+    }
     return this.queueSession(session, async () => {
       const current = input.viewId === undefined || input.viewId.trim() === ''
         ? session.views.get(session.activeViewId)
@@ -325,7 +331,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
       }
 
       if (input.action === 'new') {
-        if (createdFromPanel) {
+        if (reuseInitialView) {
           // createSession 的bindContext 已创建首个about:blank；首次面板新建直接复用，避免一次点击产生两个标签。
           const view = session.views.get(session.activeViewId)
           if (view === undefined) fail('PROVIDER_UNAVAILABLE', 'browser session has no available tab')
@@ -377,10 +383,32 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
     })
   }
 
+  /**
+   * 面板关闭时的廉价探测：回答「这个 Session 现在有没有可看的页面」。
+   * 与 panelSnapshot 不同，这里不分配 View、不推进 activeViewId、也不启动 screencast，
+   * 因此可以安全地被客户端按秒轮询。
+   */
+  panelActivity(sessionId: string): BrowserPanelActivity {
+    const session = this.sessionById(sessionId)
+    if (session === undefined) return { available: false, tabCount: 0 }
+    const pages = [...session.views.values()].filter(item => item.kind === 'page' && !item.page.isClosed())
+    const current = pages.find(item => item.viewId === session.activeViewId) ?? pages[0]
+    return {
+      available: session.providerBinding.kind !== 'disconnected',
+      tabCount: pages.length,
+      ...(current === undefined ? {} : {
+        activeViewId: current.viewId,
+        activeUrl: current.page.url(),
+        navigationGeneration: current.navigationGeneration,
+        snapshotGeneration: current.snapshotGeneration,
+      }),
+    }
+  }
+
   async panelSnapshot(sessionId: string, view: BrowserPanelView, streamGeneration?: number, sequence?: number, splitCursors?: Partial<Record<BrowserSplitViewPane, BrowserFrameCursor>>, popupCursor?: BrowserFrameCursor, diagnosticReadSequence?: number): Promise<BrowserPanelSnapshot> {
     const session = this.sessionById(sessionId)
     if (session === undefined) {
-      return { available: false, sessionId, tabs: [], console: [], network: [], message: '请先在 Provider 面板连接已开启远程调试的 Chrome 或 Edge。' }
+      return { available: false, sessionId, tabs: [], console: [], network: [], message: '浏览器尚未启动：直接调用浏览器工具会自动启动本 Session 独立的浏览器，也可以在这里手动启动或连接现有 Chrome。' }
     }
     if (session.providerBinding.kind === 'disconnected') {
       return {
@@ -390,7 +418,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
         console: [],
         network: [],
         capabilities: { provider: 'disconnected', debugger: false, networkInterception: false, tracing: false, cpuProfile: false, coverage: false, heap: false, emulation: false, evaluate: false, screencast: false, takeover: false },
-        message: '请先在 Provider 面板连接已开启远程调试的 Chrome 或 Edge。',
+        message: '浏览器尚未启动：直接调用浏览器工具会自动启动本 Session 独立的浏览器，也可以在这里手动启动或连接现有 Chrome。',
       }
     }
     const current = session.views.get(session.activeViewId) ?? [...session.views.values()].find(item => item.kind === 'page' && !item.page.isClosed())
@@ -610,7 +638,9 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
     })
   }
 
-  async disposeSession(identity: Pick<Identity, 'sessionId' | 'sessionCreatedAt'>): Promise<void> {
+  // 返回是否真的释放了该 Session 的运行时资源：false 表示 Runtime 里已经没有可释放对象，
+  // 调用方（Controller）据此向用户报告“没有正在使用的资源”，不再伪装成释放成功。
+  async disposeSession(identity: Pick<Identity, 'sessionId' | 'sessionCreatedAt'>): Promise<boolean> {
     const key = `${identity.sessionId}@${identity.sessionCreatedAt}`
     let session: SessionState | undefined
     await this.queueSharedContext(async () => {
@@ -619,7 +649,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
       this.state.sessions.delete(key)
       await this.queueSessions([session], () => this.cleanupProvider(session as SessionState))
     })
-    if (session === undefined) return
+    if (session === undefined) return false
     await this.artifacts.removeSession(key)
     this.debugSessions.stop(key)
     this.journal.clearSession(key)
@@ -629,6 +659,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
     this.builds.clearSession(key)
     this.applications.clearSession(key)
     await rm(join(this.config.artifactRoot, key.replace(/[^\w.-]/g, '_')), { recursive: true, force: true })
+    return true
   }
 
   async dispose(): Promise<void> {

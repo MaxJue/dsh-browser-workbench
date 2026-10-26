@@ -34,6 +34,9 @@ export function apply(ctx: Context, config: BrowserConfig): void {
   bindBrowserRpc(ctx, runtime, {
     getController: () => controller,
     getEffectiveToolRegistrationMode: () => effectiveToolRegistrationMode,
+    getConfiguredToolRegistrationMode: () => resolved.toolRegistrationMode,
+    getConfiguredProviderMode: () => resolved.providerMode,
+    getConfiguredExternalEndpoint: () => resolved.externalCdpEndpoint,
   })
 
   // 绑定生命周期释放、Agent disposed 监听与 Pre-execute 审批策略
@@ -55,7 +58,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
 
   if (effectiveToolRegistrationMode === 'global') {
     registerToolDefinitions(ctx, definitions)
-  } else {
+  } else if (effectiveToolRegistrationMode !== 'disabled') {
     controller = new BrowserControllerStore({
       ctx,
       storageRoot: resolved.controllerStorageRoot,

@@ -52,6 +52,6 @@ test('critical recovery and diagnostic actions remain available', () => {
   assert.ok(diagnoseActions.includes('checkpoint'))
   assert.ok(recorderActions.includes('complete'))
   assert.ok(panelViews.includes('diagnostic'))
-  assert.deepEqual(providerChoices, ['external-cdp'])
+  assert.deepEqual(providerChoices, ['managed', 'external-cdp'])
   assert.deepEqual(extensionChoices, ['list'])
 })

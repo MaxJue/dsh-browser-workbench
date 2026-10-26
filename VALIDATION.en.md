@@ -4,6 +4,10 @@
 
 This document records the objectives, procedures, and empirical results of validation runs conducted for DSH BrowserWorkbench Release Candidates.
 
+> October 2026 update: the default registration mode is now `global`, and `providerMode: auto` launches a dedicated persistent Chromium per session on the first browser tool call. Notes below such as "managed launch is not exposed on the tool surface", "the provider only accepts `external-cdp`", and "no background browser spawning" describe the code state at the time of that run and no longer apply.
+
+> 2026-10-26 update: the client panel is now a single live view, the composer binding controls are gone, and the settings-page three-way binding, `disabled` mode, `externalCdpEndpoint`, and external CDP auto-connect were added; unit tests now stand at 178. Conclusions in sections 2, 7, and 8 that depend on the nine views, the controller menu, or the composer control are superseded and annotated in section 9.
+
 Release candidate states are formally anchored by external candidate identity descriptors and tarball digests.
 
 ## Target Object
@@ -11,14 +15,14 @@ Release candidate states are formally anchored by external candidate identity de
 ```text
 package: dsh-browser-workbench
 version: 1.0.0-rc8
-DSH compatibility target: 0.2.1-rc.2
+DSH compatibility target: 0.2.1-rc.2 / 0.2.1-rc.3
 0.2.1-rc.2 validation: peer dependency check, strict typecheck, production build, Session Controller integration, 30-tool Chromium regression
 full browser runtime validation: 30-tool regression passed; fresh DSH Web Profile lifecycle and UI acceptance pending
 Node.js: 22.x
 package manager: pnpm 11.x
 ```
 
-RC8 pins its direct DSH peers to `0.2.1-rc.2`, Cordis to `~4.0.5`, and Schemastery to `~3.18.5`. The previous `0.1.x` compatibility range is no longer declared.
+RC8 declares its direct DSH peers as the range `^0.2.1-rc.2 || ^0.2.1-rc.3`, Cordis to `~4.0.5`, and Schemastery to `~3.18.5`. The previous `0.1.x` compatibility range is no longer declared.
 
 DSH `0.2.1-rc.2` updates the Connection Peer model and transitive peer graph. BrowserWorkbench continues to register its authenticated exact Fetch route, leaving authentication, Host/Origin checks, request limits, and cancellation to Connection. `dsh-tools` now requires `dsh-working-directory`, which brings the `dsh-fs` peer; both are installed in the validation graph. The removed `dsh-invariants` dependency is no longer installed.
 
@@ -46,6 +50,8 @@ profile: pass
 ```
 
 ## 2. 9-View Native DSH Workbench
+
+> 2026-10-26 note: this section records the nine-view panel as it existed before 2026-10-24. That shape is superseded — the panel now hosts the live view only — and the text is kept as a record of that run; superseded items are listed in section 9.
 
 **Objective**: Confirm that BrowserWorkbench provides 9 workspace views within the official DSH right sidebar architecture while correctly managing pane lifecycles.
 
@@ -98,13 +104,13 @@ runtimeRemoved: true
 
 **Objective**: Guarantee that output binaries are deterministic and tarball contents match the audited worktree.
 
-**RC2 Artifacts**:
+**RC8 Artifacts**:
 - `lib/client.js`
 - `lib/client.js.map`
 - `lib/index.mjs`
 - `lib/index.d.mts`
 
-Package gates verify that all 20 manifest files match repository bytes identically without spurious path leaks.
+Package gates verify that all 20 manifest files match repository bytes identically without spurious path leaks (`node scripts/check-public-package.mjs`).
 
 ## 6. Cleanup Verification
 
@@ -136,7 +142,7 @@ The sandbox mounts the working tree through `link:`, so a rebuild plus restart r
 
 | Layer | Entry | Coverage | Result |
 | --- | --- | --- | --- |
-| Static gates | `npm run typecheck` / `npm test` / `npm run build` | types, 166 unit tests, `lib/index.mjs` + `lib/client.js` | 0 errors / 166 passed (170 on the 2026-10-26 re-run) / clean build |
+| Static gates | `npm run typecheck` / `npm test` / `npm run build` | types, 178 unit tests, `lib/index.mjs` + `lib/client.js` + sourcemap | 0 errors / 178 passed / clean build |
 | Runtime | `npm run verify:tools` | 145 assertions over all 30 `browser_*` tools, including negative paths | 145/145 passed |
 | Instance | `npm run verify:instance` | client bundle loaded in the sandbox instance, composer control, authenticated RPC round trip, clean console, screenshot | 10/10 passed |
 | Real UI panel | `npm run verify:panel` | send a message to reach a formal session, activate through the controller menu, then 9 panel views + Provider connect + live frames/adaptive sizing + in-panel human takeover with real mouse and keyboard input | 33/33 passed |
@@ -209,4 +215,73 @@ npm run verify:panel        # 33/33
 npm run verify:persist -- --phase=prepare   # claim + marker
 # restart the sandbox Host (new token), then:
 npm run verify:persist -- --phase=verify    # 5/5
+```
+
+## 9. Changes This Round: Panel Slimming & Settings Binding (2026-10-26)
+
+> This round collapses the client panel into a single live view, deletes the composer binding controls, and adds the settings-page three-way binding, host config write-back, and external CDP auto-connect. Sections 2, 7, and 8 describe the pre-change UI; their conclusions about the 9 views, the controller menu, and the composer control no longer hold (see 9.3). Only results actually measured this round are recorded here — any e2e script not yet rewritten is not counted as passing.
+
+### 9.1 Static gates
+
+| Gate | Command | Result |
+| --- | --- | --- |
+| Strict typecheck | `npm run typecheck` | 0 errors |
+| Unit tests | `npm test` | 178 / 178 passed |
+| Production build | `npm run build` | clean, emits `lib/client.js` and `lib/index.mjs` |
+
+Unit tests grew from 174 to 178; the added/adjusted cases cover the three-way binding's configuration patch mapping, `controller_overview` and `controller_set_browser_choice` routing and parameter validation, the `disabled` branch, `externalCdpEndpoint` schema/policy pass-through, and `BrowserController.list()`.
+
+### 9.2 Changes and how each was accepted
+
+| Change | Code location | Acceptance this round |
+| --- | --- | --- |
+| Panel reduced to the live view | `src/client/components/panel/BrowserPanel.tsx` (only `TabBar` + `NavigationBar` + `LiveView`) | Opened the panel: no view switcher, no "open diagnostics" button, no Recorder controls, screencast renders (screenshot `assets/browser-workbench-panel.png`) |
+| Eight view directories and the composer controls deleted | `src/client/components/views/{console,debugger,diagnostic,emulation,extensions,network,performance,provider}/`, `src/client/components/control/`, `src/client/hooks/{useAutoReveal,useControllerBinding,usePanelSync}.ts` | A clean build proves no stale references remain; client state modules are unit-tested |
+| `guide` entry | `src/client/index.tsx` (`id: 'live'`, `order: 20`, `BrowserGlyph`) | The right sidebar "Get started" page shows the "Browser live view" card and it opens the panel (screenshot `assets/browser-workbench-entry.png`) |
+| Settings-page binding section | `src/client/index.tsx` (`settings.section`, `id: 'browser'`, `order: 60`), `src/client/components/settings/BrowserSettingsSection.tsx` | Settings → "Browser" section: three switchable cards; `existing` expands the endpoint input with the `/json/version` hint (screenshots `assets/browser-workbench-settings.png`, `assets/browser-workbench-settings-existing.png`) |
+| Binding write-back (`configEditor`) | `src/compat/config-editor.ts` | After switching, `- id: browser-tools` in `~/.dsh/profiles/<profile>/cordis.patch.yml` changes its `toolRegistrationMode` / `providerMode` / `externalCdpEndpoint` and hot-reloads; when not writable, the manual-edit hint appears |
+| `disabled` mode | `src/application/config.ts`, `src/compat/rpc-dispatcher.ts` | After "Disable this plugin", `browser_*` disappears from the tool surface, `controller_status` returns `blockers: ['browser-tools-disabled']`, and the panel reports the disabled state |
+| External CDP auto-connect | `ensureAutoProvider` in `src/runtime/runtime-core-foundation.ts` | With `providerMode: external` plus `externalCdpEndpoint`, a fresh session attaches to the already-running remote-debugging Chrome on first browser use, without `browser_provider connect` |
+| Navigation icon patch | `src/client/settings-nav-icon.ts` | The gear on the "Browser" row of the settings dialog becomes a browser-window icon; closing the dialog removes `data-dsh-browser-nav-icon` and the injected `<style>` |
+| RPC surface change | `src/compat/rpc-dispatcher.ts` | `controller_overview` and `controller_set_browser_choice` are callable; `controller_set_registration_mode` no longer exists (calls report an unknown endpoint) |
+
+> UI acceptance this round rests on hands-on use of the desktop Profile, evidenced by `assets/browser-workbench-{entry,panel,settings,settings-existing}.png`. Paths with no recorded evidence (the real external CDP auto-connect, the write-back failure branches, multi-session switching) are listed in 9.4 and are not claimed as proven.
+
+### 9.3 Superseded historical claims (annotated, not deleted)
+
+| Location | Original claim | Current status |
+| --- | --- | --- |
+| 7.2 "Real UI panel" | `verify:panel` 33/33 covering "controller menu activation → 9 panel views" | **Superseded**: `scripts/verify/e2e-panel.mjs` still asserts the old composer menu and nine views, so it necessarily fails today; **pending rewrite**, not counted as passing |
+| 7.2 "Instance" | `verify:instance` 10/10 including the composer slot and binding control | Partially superseded: `conversation.input.right` is no longer registered, so those assertions must be rewritten and re-run |
+| 7.3 defect #1 (composer slot crash) | Fixed by stabilizing `usePanelSync` callbacks | No longer applicable: `usePanelSync` is deleted and the composer control is gone entirely |
+| 7.3 defect #4 (provider endpoint input lacked an accessible name) | Added `aria-label="远程调试地址"` in `ProviderView` | The component is deleted; the settings-page `existing` card's "browser debugging endpoint" input takes over |
+| 7.4 "…drove all 9 panel views plus Provider connect…" | Nine views and Provider connect passed in the real UI | **Superseded**: the panel only hosts the live view; the Provider entry moved to the settings page |
+| 7.4 "Managed launch is not exposed on the tool surface" | The provider only accepts `external-cdp` | Partially superseded: `providerMode: auto` launches a session browser again; `external` still only uses external CDP |
+| 7.4 numbering / 8.3 reproduce list | `verify:panel` and `verify:rpc` counted as panel and RPC layers | Both **pending rewrite**; until then, 9.1 static gates plus this round's manual checks are the evidence |
+| 8.1 "`config.ts` exposes 21 options" | 21 options | Now **22**: `externalCdpEndpoint` was added and `toolRegistrationMode` gained `disabled` |
+| 8.2 "claim BrowserWorkbench through the real controller menu" | 16/16 covering the claim and persistence across reloads | The claim entry point is gone (`session-select` is no longer offered in the UI), **pending rewrite** as settings-page three-way binding cases |
+
+### 9.4 Not yet proven / pending rewrite
+
+- `scripts/verify/e2e-panel.mjs` and `scripts/verify/e2e-rpc.mjs` are **pending rewrite**: both assert the old composer menu and nine-view routing and do not run today. Until they are rewritten and pass, this report claims no automated result for the panel layer or the RPC success path.
+- The three settings write-back failure branches (no `configEditor` service, missing `browser-tools` entry, entry overridden by a home patch) are covered only by unit tests and manual scenarios; there is no e2e yet.
+- The navigation icon patch depends on host DOM structure (`[role="dialog"] nav button` plus label text) and must be re-checked whenever the host settings page changes.
+- The real external CDP auto-connect path (including the `PROVIDER_UNAVAILABLE` message on failure) needs a manual re-run against a real Chrome started with a remote-debugging port.
+- The full `disabled` → re-enable round trip was only checked manually in a single session; concurrent switching across sessions is unverified.
+
+### 9.5 Reproduce
+
+```powershell
+npm run typecheck
+npm test          # 178 / 178
+npm run build     # lib/client.js + lib/index.mjs
+
+# Panel / settings acceptance (desktop profile, manual)
+# open the DSH Web UI in the browser, then:
+# 1. right sidebar "Get started" → "Browser live view" → panel opens with live view only
+# 2. Settings → "Browser" → switch workbench / existing / off and, for "existing", fill the endpoint
+
+# Neither of these counts as passing until rewritten
+# npm run verify:panel
+# npm run verify:rpc
 ```

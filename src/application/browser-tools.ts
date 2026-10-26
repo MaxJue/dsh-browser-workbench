@@ -366,7 +366,7 @@ export function defineBrowserTools(runtime: BrowserRuntime): ToolDefinition[] {
 
   tool(definitions, {
     name: 'browser_provider',
-    description: 'Connect or disconnect this Session from an explicitly supplied Chrome/Edge remote-debugging endpoint. This tool does not launch or manage a browser, scan endpoints, or switch to another provider. Connect and disconnect require approval.',
+    description: 'Inspect or change how this Session reaches a browser. managed starts a browser dedicated to this Session in its own profile, so different Sessions do not share pages or interfere with each other. external-cdp connects to an explicitly supplied Chrome/Edge remote-debugging endpoint and never scans for one. Connect and disconnect require approval.',
     parameters: {
       action: { type: 'string', enum: providerActions, required: true },
       provider: { type: 'string', enum: providerChoices },

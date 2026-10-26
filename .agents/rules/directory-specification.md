@@ -17,5 +17,5 @@ This repository enforces strict domain-driven modularity, zero-deadlock concurre
 8. **DSH Compatibility**: Use flexible peer ranges for `@deepseek-ai/dsh-*` (e.g., `"^0.2.1-rc.2 || ^0.2.1-rc.3"`) and use `pnpm` for dependencies.
 9. **Verification Gate**:
    - `npm run typecheck` must pass with 0 errors.
-   - `npm test` must pass 100% of unit tests (145/145).
+   - `npm test` must pass 100% of unit tests (178/178).
    - `npm run build` must generate valid production bundles.

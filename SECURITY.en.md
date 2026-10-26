@@ -4,7 +4,7 @@
 
 ## Supported Versions
 
-This document applies to `1.0.0-rc7`; check the npm Registry and GitHub Releases for the actual public version.
+This document applies to `1.0.0-rc8`; check the npm Registry and GitHub Releases for the actual public version.
 
 This is a Release Candidate and does not follow a stable-release compatibility cycle. Security fixes will be prioritized for the latest release candidate or a later stable release.
 
@@ -55,6 +55,7 @@ DSH BrowserWorkbench follows these boundaries:
 - It only allows navigation to HTTP and HTTPS pages, and rejects credentials embedded in URLs.
 - It applies bounded redaction to Network, Console, Debugger, and diagnostic output.
 - It does not take over, uninstall, reconfigure, or stop third-party browser plugins.
-- `session-select` only arbitrates the model-facing tool surface of the current Agent Session.
+- The default `global` registration does not arbitrate the tool surface per session; when `session-select` is enabled it only arbitrates the model-facing tool surface of the current Agent Session.
+- A browser launched by `providerMode: auto` uses that session's dedicated user-data-dir and does not read cookies or login state from the user's everyday browser.
 
 If the implementation violates any of these boundaries, report it as a security vulnerability.

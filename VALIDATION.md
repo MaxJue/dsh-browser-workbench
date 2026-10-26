@@ -4,6 +4,10 @@
 
 本文记录 DSH BrowserWorkbench 当前 Release Candidate 的测试目的、测试内容、测试过程和测试结果。
 
+> 2026-10 更新：默认注册模式已改为 `global`，并新增 `providerMode: auto`（Session 首次调用浏览器工具时自动启动该 Session 独立的持久化 Chromium）。下文中「托管启动不在工具面暴露」「Provider 只接受 external-cdp」「不启动后台浏览器」等边界仅描述当次验证时的代码状态，已不适用于当前代码。
+
+> 2026-10-26 更新：客户端面板已收敛为单一实况视图，composer 绑定控件删除，新增设置页三态绑定、`disabled` 模式、`externalCdpEndpoint` 与外部 CDP 自动连接，单测增至 178。第十四、十五节中涉及「9 视图」「控制器菜单」「composer 控件」的结论已失效，逐项标注见第十六节。
+
 候选状态以外部候选身份文件和 tarball 摘要为准。本文描述测试结果，不能单独证明某个版本已经完成 Git Tag、GitHub Release 或 npm 发布。
 
 ## 测试对象
@@ -11,14 +15,14 @@
 ```text
 package: dsh-browser-workbench
 version: 1.0.0-rc8
-DSH compatibility target: 0.2.1-rc.2
+DSH compatibility target: 0.2.1-rc.2 / 0.2.1-rc.3
 0.2.1-rc.2 validation: peer dependency check, strict typecheck, production build, Session Controller integration, 30-tool Chromium regression
 full browser runtime validation: 30-tool regression passed; fresh DSH Web Profile lifecycle and UI acceptance pending
 Node.js: 22.x
 package manager: pnpm 11.x
 ```
 
-RC8 的直接 DSH peers 精确固定为 `0.2.1-rc.2`，Cordis 为 `~4.0.5`，Schemastery 为 `~3.18.5`。旧版 `0.1.x` 兼容范围不再声明。
+RC8 的直接 DSH peers 声明为范围 `^0.2.1-rc.2 || ^0.2.1-rc.3`，Cordis 为 `~4.0.5`，Schemastery 为 `~3.18.5`。旧版 `0.1.x` 兼容范围不再声明。
 
 DSH `0.2.1-rc.2` 更新了 Connection Peer 模型和传递 peer 依赖。BrowserWorkbench 继续注册 Connection 的认证精确 Fetch Route，认证、Host/Origin、请求体限制和取消由 Connection 提供。`dsh-tools` 新增 `dsh-working-directory` peer，后者依赖 `dsh-fs`；二者已加入开发验证依赖图。已移除停止发布的 `dsh-invariants`。
 
@@ -70,6 +74,8 @@ profile: pass
 
 ## 二、九视图 DSH 原生工作台
 
+> 2026-10-26 注：本节记录的是 2026-10-24 之前的九视图面板形态，该形态已作废（面板现只保留实况视图），原文保留作为当次记录，失效项见[第十六节](#十六本轮变更面板瘦身与设置页绑定2026-10-26)。
+
 **测试目的**：确认 BrowserWorkbench 使用 DSH 官方右侧栏机制提供九个工作台视图，并正确处理关闭、切换和多 Pane 生命周期。
 
 **测试内容（RC1 历史基线）**：Hero 临时 Session 门禁、正式 Session 激活、九个视图切换、标签栏与导航栏持续性、面板内关闭与官方标签关闭同步、Session 切换、多 Pane 去重、旧版退出与释放流程。
@@ -102,7 +108,7 @@ profile: pass
 - 第二个 Session 可以独立选择其他浏览器工具，且不再提供启用 BrowserWorkbench 的入口；
 - 重启 DSH Web 后，两个原 Session 分别恢复为 BrowserWorkbench 锁定和其他浏览器工具锁定；
 - 两个持久记录均为 schema v2、`generation=1`；
-- 三张 Session Controller 截图已按新界面重新生成并覆盖正式资源。
+- 两张 Session Controller 截图已按新界面重新生成并覆盖正式资源（第三张已剔除）。
 
 ## 三、Session 级 Controller 共存
 
@@ -412,7 +418,7 @@ Host 侧插件与 harness 同进程加载：插件在 `apply()` 里同步抛错�
 
 | 层级 | 入口 | 覆盖 | 结果 |
 | --- | --- | --- | --- |
-| 静态门禁 | `npm run typecheck` / `npm test` / `npm run build` | 类型、单测、`lib/index.mjs` + `lib/client.js` | 0 错误 / 166 通过（2026-10-26 复跑 170 通过）/ 构建成功 |
+| 静态门禁 | `npm run typecheck` / `npm test` / `npm run build` | 类型、178 项单测、`lib/index.mjs` + `lib/client.js` + sourcemap | 0 错误 / 178 通过 / 构建成功 |
 | Runtime 层 | `npm run verify:tools` | 30 个 `browser_*` 工具的 145 项断言（含负例） | 145/145 通过 |
 | 实例层 | `npm run verify:instance` | 沙箱实例加载 Client bundle、composer 槽位、认证 RPC 往返、console 洁净、截图 | 10/10 通过 |
 | 真实 UI 面板层 | `npm run verify:panel` | 沙箱实例里发消息形成正式 Session → 控制器菜单激活 → 面板 9 视图 + Provider 连接 + 实况帧/自适应 + 面板内人工接管与真实键鼠输入 | 33/33 通过 |
@@ -528,4 +534,73 @@ npm run verify:rpc      # 16/16（需要沙箱实例 + token）
 npm run verify:persist -- --phase=prepare   # 7/7，记录 marker
 # 重启沙箱 Host（换新 token）后：
 npm run verify:persist -- --phase=verify    # 5/5
+```
+
+## 十六、本轮变更：面板瘦身与设置页绑定（2026-10-26）
+
+> 本轮把客户端面板收敛为单一实况视图、删除 composer 绑定控件，新增设置页三态绑定、宿主配置写回与外部 CDP 自动连接。第十四、十五节记录的是改动前的 UI 结构，其中涉及「9 视图」「控制器菜单」「composer 控件」的结论已失效，逐项标注见 16.3。本节只登记本轮实测到的结果，未重写的 e2e 一律不计为通过。
+
+### 16.1 静态门禁
+
+| 门禁 | 命令 | 结果 |
+| --- | --- | --- |
+| 严格类型检查 | `npm run typecheck` | 0 错误 |
+| 单元测试 | `npm test` | 178 / 178 通过 |
+| 正式构建 | `npm run build` | 成功，产出 `lib/client.js` 与 `lib/index.mjs` |
+
+单测从 174 增至 178：新增/调整的用例覆盖三态绑定的配置补丁映射、`controller_overview` 与 `controller_set_browser_choice` 的路由与参数校验、`disabled` 分支、`externalCdpEndpoint` 的 schema 与策略透传、`BrowserController.list()`。
+
+### 16.2 本轮改动与验收方式
+
+| 改动 | 代码位置 | 本轮验收方式 |
+| --- | --- | --- |
+| 面板只剩实况视图 | `src/client/components/panel/BrowserPanel.tsx`（仅 `TabBar` + `NavigationBar` + `LiveView`） | 打开面板确认无视图切换入口、无「打开诊断」按钮与 Recorder 控件，实况画面正常（截图 `assets/browser-workbench-panel.png`） |
+| 8 个视图目录与 composer 控件删除 | `src/client/components/views/{console,debugger,diagnostic,emulation,extensions,network,performance,provider}/`、`src/client/components/control/`、`src/client/hooks/{useAutoReveal,useControllerBinding,usePanelSync}.ts` | 构建通过即证明无残留引用；单测覆盖客户端状态模块 |
+| `guide` 入口 | `src/client/index.tsx`（`id: 'live'`、`order: 20`、`BrowserGlyph`） | 右侧栏「开始」页出现「浏览器实况」卡片，点击可展开面板（截图 `assets/browser-workbench-entry.png`） |
+| 设置页三态绑定分区 | `src/client/index.tsx`（`settings.section`，`id: 'browser'`、`order: 60`）、`src/client/components/settings/BrowserSettingsSection.tsx` | 打开设置 → 「浏览器」分区，三张卡片可切换；`existing` 展开端点输入，`/json/version` 校验提示可见（截图 `assets/browser-workbench-settings.png`、`assets/browser-workbench-settings-existing.png`） |
+| 绑定写回（`configEditor`） | `src/compat/config-editor.ts` | 切换后 `~/.dsh/profiles/<profile>/cordis.patch.yml` 中 `- id: browser-tools` 的 `toolRegistrationMode` / `providerMode` / `externalCdpEndpoint` 发生变化并触发热重载；不可写时出现手改提示 |
+| `disabled` 模式 | `src/application/config.ts`、`src/compat/rpc-dispatcher.ts` | 选「停用本插件」后 `browser_*` 不再出现在工具面，`controller_status` 返回 `blockers: ['browser-tools-disabled']`，面板提示停用 |
+| 外部 CDP 自动连接 | `src/runtime/runtime-core-foundation.ts` 的 `ensureAutoProvider` | `providerMode: external` + `externalCdpEndpoint` 下，新 Session 首次用浏览器直接连上已开远程调试的 Chrome，无需 `browser_provider connect` |
+| 导航图标补丁 | `src/client/settings-nav-icon.ts` | 设置弹窗左侧「浏览器」行的齿轮被替换为浏览器窗口图标；关闭弹窗后 `data-dsh-browser-nav-icon` 与注入的 `<style>` 均被清理 |
+| RPC 面变更 | `src/compat/rpc-dispatcher.ts` | `controller_overview` 与 `controller_set_browser_choice` 可调用；`controller_set_registration_mode` 已不存在（调用返回未知端点） |
+
+> 本轮的界面验收以桌面 Profile 上的实际操作为准，证据为 `assets/browser-workbench-{entry,panel,settings,settings-existing}.png`；没有留下实测证据的链路（真实外部 CDP 自动连接、写回失败分支、多 Session 切换）一律列入 16.4，不计为已证明。
+
+### 16.3 受影响的历史结论（标注作废，不删除原始记录）
+
+| 历史位置 | 原结论 | 现状 |
+| --- | --- | --- |
+| 14.2 七层矩阵「真实 UI 面板层」 | `verify:panel` 33/33，覆盖「控制器菜单激活 → 面板 9 视图」 | **作废**：`scripts/verify/e2e-panel.mjs` 仍按旧 composer 菜单与九视图断言，当前必然失败，**待重写**，不计为通过 |
+| 14.2「实例层」 | `verify:instance` 10/10，含 composer 槽位与绑定控件 | 部分作废：composer 槽位不再注册，相关断言需重写后重测 |
+| 14.4 缺陷 #1（composer 槽位崩溃） | 通过固定 `usePanelSync` 回调修复 | 结论不再适用：`usePanelSync` 已删除，composer 控件整体移除 |
+| 14.4 缺陷 #4（Provider 端点输入框缺可访问名） | 给 `ProviderView` 输入框加 `aria-label="远程调试地址"` | 组件已删除；现由设置页 `existing` 卡片的「浏览器调试端点」输入框承接 |
+| 14.5「沙箱…面板 9 个视图…全部走通」 | 9 视图与 Provider 连接在真实 UI 通过 | **作废**：面板只剩实况，Provider 入口搬到设置页 |
+| 14.5「托管启动不在工具面暴露」 | Provider 只接受 `external-cdp` | 部分作废：`providerMode: auto` 会托管启动会话浏览器；`external` 仍只走外部 CDP |
+| 14.6 复现命令 | `verify:panel` / `verify:rpc` 计入面板与 RPC 层 | 两者**待重写**；重写完成前以 16.1 静态门禁与本轮手测为准 |
+| 15.1「`config.ts` 共 21 个配置项」 | 21 项 | 现为 **22** 项：新增 `externalCdpEndpoint`；`toolRegistrationMode` 枚举增加 `disabled` |
+| 15.2「控制器菜单『确认选择』认领 BrowserWorkbench」 | 16/16 覆盖认领与跨刷新持久化 | 认领入口已删除（`session-select` 不再由 UI 提供），**待重写**为设置页三态绑定用例 |
+
+### 16.4 尚未证明 / 待重写
+
+- `scripts/verify/e2e-panel.mjs`、`scripts/verify/e2e-rpc.mjs` **待重写**：两者仍断言旧 composer 菜单与九视图路由，当前跑不通；在重写并实测通过前，本报告不主张任何面板层或 RPC 成功路径的自动化结论。
+- 设置页写回的三条失败分支（无 `configEditor` 服务、`browser-tools` 条目缺失、条目被 home patch 覆盖）目前只有单测与手改场景覆盖，缺 e2e。
+- 导航图标补丁依赖宿主 DOM 结构（`[role="dialog"] nav button` + label 文本），宿主设置页改版后需复验。
+- 外部 CDP 自动连接的真实链路（含失败时的 `PROVIDER_UNAVAILABLE` 文案）需要在带远程调试端口的真实 Chrome 上手工复验。
+- `disabled` 到恢复绑定的完整往返只做了单 Session 手测，未覆盖多 Session 并发切换。
+
+### 16.5 复现
+
+```powershell
+npm run typecheck
+npm test          # 178 / 178
+npm run build     # lib/client.js + lib/index.mjs
+
+# 面板 / 设置页验收（桌面 Profile，手工）
+# 在浏览器里打开 DSH Web，然后：
+# 1. 右侧栏「开始」→「浏览器实况」→ 面板只显示实况视图
+# 2. 设置 →「浏览器」→ 切换 workbench / existing / off，existing 需填端点
+
+# 以下两项在重写完成前不计入通过
+# npm run verify:panel
+# npm run verify:rpc
 ```

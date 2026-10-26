@@ -4,7 +4,7 @@
 
 ## 支持范围
 
-本文件适用于 `1.0.0-rc7`；实际公开版本请以 npm Registry 与 GitHub Release 的记录为准。
+本文件适用于 `1.0.0-rc8`；实际公开版本请以 npm Registry 与 GitHub Release 的记录为准。
 
 这是 Release Candidate，不承诺稳定版兼容周期。安全修复优先进入最新候选版本或后续正式版本。
 
@@ -55,6 +55,7 @@ DSH BrowserWorkbench 遵守以下边界：
 - 只允许 HTTP/HTTPS 页面导航，拒绝 URL 内嵌凭据
 - 对 Network、Console、Debugger 和诊断输出执行有界脱敏
 - 不接管、卸载、重配或关闭第三方浏览器插件
-- `session-select` 只仲裁当前 Agent Session 的模型工具面
+- 默认 `global` 注册不按 Session 仲裁工具面；启用 `session-select` 时只仲裁当前 Agent Session 的模型工具面
+- `providerMode: auto` 自动启动的浏览器使用该 Session 独立的 user-data-dir，不读取用户日常浏览器的 Cookie 或登录态
 
 发现实现违反这些边界时，按安全漏洞方式报告。

@@ -9,6 +9,7 @@ export function providerState(session: SessionState) {
     ...(session.persistentProfile === undefined ? {} : { persistentProfile: session.persistentProfile }),
     providers: [
       { provider: 'disconnected', isolation: 'none', connected: session.provider === 'disconnected' },
+      { provider: 'managed', isolation: 'per-session', connected: session.provider === 'managed' },
       { provider: 'external-cdp', isolation: 'external-browser', connected: session.provider === 'external-cdp' },
     ],
   } as const
@@ -16,7 +17,7 @@ export function providerState(session: SessionState) {
 
 export function sessionContext(session: SessionState, sharedContext: BrowserContext | undefined): BrowserContext {
   if (session.providerBinding.kind === 'disconnected') {
-    fail('BROWSER_NOT_CONNECTED', '请先在 Provider 面板连接已开启远程调试的 Chrome 或 Edge')
+    fail('BROWSER_NOT_CONNECTED', '浏览器尚未启动：调用浏览器工具会自动启动本 Session 独立的浏览器，也可以在 Provider 面板手动启动或连接现有 Chrome')
   }
   if (session.providerBinding.kind === 'shared-persistent') {
     if (sharedContext === undefined) fail('PROVIDER_UNAVAILABLE', 'shared persistent browser context is not available')
