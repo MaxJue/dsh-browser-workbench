@@ -73,6 +73,13 @@ export class ContextIdentityRegistry {
     return value
   }
 
+  // Reads happen from CDP event handlers, which can fire after the session was
+  // invalidated (view closed, browser context replaced). A missing topology is
+  // "identity unknown", not a failure: it must never throw inside a listener.
+  private trySession(sessionKey: string): SessionTopology | undefined {
+    return this.sessions.get(sessionKey)
+  }
+
   upsertTarget(sessionKey: string, target: TargetIdentity): TargetIdentity {
     const session = this.session(sessionKey)
     const value: TargetIdentity = {
@@ -246,7 +253,7 @@ export class ContextIdentityRegistry {
 
   frameContext(sessionKey: string, frameId: string | undefined): EvidenceContextIdentity {
     if (frameId === undefined) return {}
-    const frame = this.session(sessionKey).frames.get(frameId)
+    const frame = this.trySession(sessionKey)?.frames.get(frameId)
     if (frame === undefined || !frame.attached) return {}
     return {
       targetId: frame.targetId,
@@ -258,12 +265,14 @@ export class ContextIdentityRegistry {
 
   uniqueFrameContext(sessionKey: string, viewId: string, url: string): EvidenceContextIdentity {
     if (url === '') return {}
-    const candidates = [...this.session(sessionKey).frames.values()].filter(frame => frame.attached && frame.viewId === viewId && frame.url === url)
+    const session = this.trySession(sessionKey)
+    if (session === undefined) return {}
+    const candidates = [...session.frames.values()].filter(frame => frame.attached && frame.viewId === viewId && frame.url === url)
     return candidates.length === 1 ? this.frameContext(sessionKey, candidates[0]?.frameId) : {}
   }
 
   executionContext(sessionKey: string, executionContextId: number): EvidenceContextIdentity {
-    const context = this.session(sessionKey).executionContexts.get(executionContextId)
+    const context = this.trySession(sessionKey)?.executionContexts.get(executionContextId)
     if (context === undefined || !context.attached) return {}
     return {
       targetId: context.targetId,
