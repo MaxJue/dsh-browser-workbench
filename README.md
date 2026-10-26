@@ -2,7 +2,7 @@
 
 # DSH BrowserWorkbench
 
-### 把完整 Chromium DevTools 交给 DSH Agent
+### 把可操作的 Chromium 调试工作台交给 DSH Agent
 
 不只看页面。能点击、能断点、能抓请求、能读 Source Map，还能把现场证据留下。
 
@@ -31,7 +31,7 @@
 | 项目 | 真实情况 |
 | --- | --- |
 | 版本 | `1.0.0-rc8`(Release Candidate) |
-| 目标宿主 | DSH `0.2.1-rc.2` / `0.2.1-rc.3`(peer 精确固定)，Cordis `~4.0.5`，Schemastery `~3.18.5` |
+| 目标宿主 | DSH `0.2.1-rc.2` / `0.2.1-rc.3`（peer 声明为范围 `^0.2.1-rc.2 \|\| ^0.2.1-rc.3`），Cordis `~4.0.5`，Schemastery `~3.18.5` |
 | npm 状态 | **未发布**。首次发布流程尚未执行，npm 安装方式目前不可用 |
 | 仓库内容 | 源码 + 测试 + 文档；**不含** `lib/` 构建产物，也不含 `node_modules`、`.sandbox`、`.npm-cache` |
 | 已实测通过 | 严格类型检查、170 个单测、正式构建、30 工具真实 Chromium 回归、独立进程 + 独立 `DSH_HOME` 的七层验证 |
@@ -42,11 +42,11 @@
 
 前端调试最头疼的是什么？看不到页面结构、抓不到请求细节、断点打不进去、错误只有一句话。Agent 遇到复杂网页问题时更麻烦——只能截个图、描述几句，然后陷入"刷新试试""清缓存看看"的循环。
 
-BrowserWorkbench 在 DSH Web 右侧栏嵌入一个完整的 Chromium 工作台，配备 30 个专门定制的自动化工具。Agent 现在能直接读页面结构、操作元素、查看 Console、追踪请求、下断点、读调用栈、解析 Source Map、分析性能，并把操作前后的完整现场记录下来。从基础的点击滑动，到深度的断点调试和性能瓶颈定位，全在一个 Session 里完成。
+BrowserWorkbench 在 DSH Web 右侧栏提供一个可操作的浏览器工作台，配备 30 个专门定制的自动化工具。它不是 DevTools 前端的嵌入，而是针对 Agent 场景重新实现的一套界面——实况、诊断、Console、Network、Debugger、Performance、Provider、扩展管理、Emulation 九个视图。Agent 现在能直接读页面结构、操作元素、查看 Console、追踪请求、下断点、读调用栈、解析 Source Map、分析性能，并把操作前后的完整现场记录下来。从基础的点击滑动，到深度的断点调试和性能瓶颈定位，全在一个 Session 里完成。
 
-**工具面只接受外部 CDP 连接**：Agent 通过 `browser_provider` 连接用户已经开启远程调试的 Chrome 或 Edge，不会浏览、下载或托管新的浏览器；页面、标签和登录状态都留在用户自己的浏览器里。插件内部保留了托管启动（`executablePath`、`headless`、代理）的实现与测试，但当前版本不在工具面暴露，详见[已知边界](#已知边界)。
+**工具面只接受外部 CDP 连接**：Agent 通过 `browser_provider` 连接用户已经开启远程调试的 Chrome 或 Edge，不会启动、扫描或下载浏览器；页面、标签和登录状态都留在用户自己的浏览器里。插件内部保留了托管启动（`executablePath`、`headless`、代理）的实现与测试，但当前版本不在工具面暴露，详见[已知边界](#已知边界)。
 
-![BrowserWorkbench 嵌入 DSH Web 的实况工作台](./assets/browser-workbench-hero.png)
+![BrowserWorkbench 在 DSH Web 中的实况工作台](./assets/browser-workbench-hero.png)
 
 ## 目录
 
@@ -79,13 +79,13 @@ Agent 对话、真实页面、标签栏、地址栏和调试结果全在 DSH 右
 
 选择 BrowserWorkbench 后，当前 Session 只使用 BrowserWorkbench；选择其他浏览器工具后，BrowserWorkbench 不会在该 Session 注册工具或创建浏览器资源。选定后不能中途更换，需要换插件时新建 Session。其他 Session 可以独立选择，第三方插件本身不被停止或修改。
 
-释放 BrowserWorkbench 资源只会关闭它自己的页面和调试状态，不会解除当前 Session 的工具选择。DSH 重启或 Agent Scope 替换后，原选择继续保持。
+释放 BrowserWorkbench 资源会断开 CDP 连接、清空该 Session 的视图与调试状态，但不会关闭用户浏览器里的标签，也不会解除当前 Session 的工具选择。释放后再调用工具，需要重新执行 `browser_provider connect`。DSH 重启或 Agent Scope 替换后，原选择继续保持。
 
 ### 线上压缩代码？直接还原
 
 ![Debugger、脚本列表与 Source Map](./assets/browser-workbench-debugger.png)
 
-代码被 Webpack 压缩成一行？没关系。连上 CDP Debugger，脚本列表直接列出页面真实加载的 bundle，每个脚本都能一键打开源码与 Source Map；断点、单步、调用栈和变量作用域都在原位。
+代码被 Webpack 压缩成一行？没关系。连上 CDP Debugger，脚本列表直接列出页面真实加载的 bundle，每个脚本都能直接取到源码与 Source Map（以 JSON 返回）；断点、单步、调用栈和变量作用域都在原位。
 
 ### 请求时序，一清二楚
 
@@ -107,7 +107,7 @@ Debug Session 把页面身份、操作时间线、Context Topology 和 Build Ide
 
 ![Checkpoint、Compare、Incident 与 Takeover 摘要](./assets/browser-workbench-diagnose-2.png)
 
-操作前后各存一个 Checkpoint：Compare 直接给出环境可比性、回归判定（`fixed` / `regressed`）与 Incident 摘要，滚动这类纯视觉变化也算得清楚。
+操作前后各存一个 Checkpoint：Compare 先判断两次现场是否可比（viewId、context generation、URL、viewport、DPR），再按页面溢出、元素命中与可见性、Console 错误数、Network 请求数四路信号给出 `fixed` / `improved` / `unchanged` / `regressed` / `incomparable` / `evidence-insufficient`，缺证据的维度会明确标注而不是猜。
 
 ### 性能问题，无处藏身
 
@@ -160,11 +160,11 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 | 功能 | 说明 | 工具 |
 | --- | --- | --- |
 | 标签管理 | 查看、创建、切换和关闭标签 | `browser_tabs` |
-| 页面导航 | 打开 URL、后退、前进和刷新 | `browser_navigate`, `browser_navigate_back` |
-| 读取页面 | 读取页面结构、元素位置、属性和查询结果 | `browser_snapshot`, `browser_get_attribute`, `browser_query` |
+| 页面导航 | 打开 URL、后退（前进与刷新只存在于面板操作，不在工具面） | `browser_navigate`, `browser_navigate_back` |
+| 读取页面 | 读取页面结构、元素引用与属性、选择器查询结果 | `browser_snapshot`, `browser_get_attribute`, `browser_query` |
 | 操作页面 | 点击、悬停、滚动、输入文字、按键、选择下拉项和等待变化 | `browser_click`, `browser_hover`, `browser_scroll`, `browser_type`, `browser_press_key`, `browser_select_option`, `browser_wait_for` |
 | 处理弹窗 | 接受或拒绝页面弹窗，并填写 Prompt | `browser_handle_dialog` |
-| 执行脚本 | 在页面或指定元素中执行 JavaScript | `browser_evaluate` |
+| 执行脚本 | 在隔离世界、主世界或暂停帧中执行 JavaScript | `browser_evaluate` |
 | 截图 | 保存当前页面画面 | `browser_take_screenshot` |
 | 上传下载 | 上传本地文件，捕获并保存下载文件 | `browser_upload_file`, `browser_download` |
 
@@ -172,13 +172,13 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 
 | 功能 | 说明 | 工具 |
 | --- | --- | --- |
-| 读取 Console | 查看日志、警告、错误和重复消息 | `browser_console_messages` |
+| 读取 Console | 查看日志、警告和错误，带级别与时间 | `browser_console_messages` |
 | 查看请求 | 查看请求地址、方法、状态、资源类型和发生顺序 | `browser_network_requests` |
-| 查看请求内容 | 读取请求和响应 Body | `browser_network_requests` |
+| 查看请求内容 | 读取当前暂停请求的 Body，大内容存为制品 | `browser_network_control` |
 | 暂停请求 | 在请求或响应阶段拦截流量 | `browser_network_control` |
 | 放行或终止 | 对被暂停的请求执行 Continue 或 Abort | `browser_network_control` |
 | 模拟响应 | 返回自定义状态、Header 和 Body | `browser_network_control` |
-| 重发请求 | 重放已经发生的请求 | `browser_network_control` |
+| 重发请求 | 重放当前仍处于暂停状态的请求 | `browser_network_control` |
 | 自动恢复 | 拦截超时后自动放行，避免页面卡住 | `browser_network_control` |
 
 ### 断点与源码
@@ -190,7 +190,8 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 | 查看调用栈 | 查看函数调用顺序、脚本位置和暂停原因 | `browser_debugger` |
 | 查看变量 | 查看 Local、Closure 和 Global 中的变量 | `browser_debugger` |
 | 读取脚本 | 查看页面加载的脚本和运行时源码 | `browser_debugger` |
-| 还原源码 | 把压缩代码位置映射回原始文件和行列 | `browser_debugger`, `browser_diagnose` |
+| 获取 Source Map | 下载并保存脚本的 `.map`，同时绑定构建身份 | `browser_debugger` |
+| 还原源码位置 | 在诊断报告里把带 stack 的 Console 错误映射回原始文件与行列 | `browser_diagnose` |
 | 识别构建版本 | 记录脚本内容和构建身份，避免读错版本 | `browser_diagnose` |
 | 区分执行环境 | 区分主世界、隔离世界和暂停帧 | `browser_debugger`, `browser_diagnose` |
 
@@ -208,8 +209,9 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 | 保存 Checkpoint | 记录操作前后的页面和身份状态 | `browser_diagnose` |
 | 对比变化 | 比较两个 Checkpoint，标出变化和回退 | `browser_diagnose` |
 | 生成 Incident | 汇总动作、Console、请求、身份和对比结果 | `browser_diagnose` |
-| 记录关键事件 | 按 Off、Rolling、Deep、Metadata-only 和 Incident 模式记录 | `browser_diagnose` |
-| 保存大文件 | 把 Trace、Profile、Heap 和报告保存到 Session 目录 | `browser_profile`, `browser_diagnose` |
+| 记录关键事件 | 按 Off / Rolling / Deep 三档记录，事件超量时降级为 metadata-only | `browser_diagnose` |
+| 保存大文件 | 把 Trace、CPU Profile、Coverage 和 Heap 存成制品并标注大小 | `browser_profile` |
+| 生成 Incident 报告 | 汇总后内联返回 markdown，受输出上限截断（不落盘） | `browser_diagnose` |
 
 ### 实况与人工接管
 
@@ -230,7 +232,7 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 
 | 功能 | 说明 | 工具 |
 | --- | --- | --- |
-| 扩展管理边界 | 外部 CDP 模式下 `browser_extensions` 是只读兼容端点，不读取、不安装、不启停浏览器扩展 | `browser_extensions` |
+| 扩展管理边界 | 外部 CDP 模式下 `browser_extensions` 只列出历史注册表里的扩展，不安装、不启停浏览器扩展 | `browser_extensions` |
 | 连接浏览器 | 连接已用远程调试启动的 Chrome/Edge | `browser_provider` |
 | 保留浏览器状态 | Cookie、缓存、权限和扩展状态由用户浏览器保留 | `browser_provider` |
 | 断开连接 | 只释放 DSH 的 CDP 连接，不关闭用户浏览器 | `browser_provider` |
@@ -245,17 +247,17 @@ dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scri
 | Session 锁定 | 选择后不能在同一个 Session 中更换浏览器插件；需要更换时新建 Session |
 | 选择前保护 | 尚未选择时，当前 Session 暂时不向 Agent 暴露识别到的浏览器工具 |
 | 按需注册 | 选择 BrowserWorkbench 后，只在当前 Session 注册 30 个工具 |
-| 全局模式 | `toolRegistrationMode: global` 时独占 Profile 全局注册工具 |
-| 安全降级 | 全局模式发现已有浏览器工具时，自动改为按 Session 选择 |
+| 全局模式 | `toolRegistrationMode: global` 时在 Profile 层全局注册这 30 个工具，不阻止其他浏览器工具继续存在 |
+| 安全降级 | 全局模式启动时若已存在 `browser_` 前缀的工具，自动改为按 Session 选择 |
 | 工具替换 | 选择 BrowserWorkbench 后，只在当前 Session 中遮蔽同名工具并隐藏第三方独有浏览器工具 |
-| 释放资源 | 关闭 BrowserWorkbench 页面和调试状态，但不解除该 Session 的 BrowserWorkbench 锁定 |
+| 释放资源 | 断开 CDP 连接并清空该 Session 的视图与调试状态，但不关闭用户浏览器里的标签，也不解除锁定 |
 | 重启恢复 | DSH 重启或 Agent Scope 替换后，继续恢复该 Session 已保存的选择 |
-| 隔离 Session | 一个 Session 的选择、标签和调试状态不会改变其他 Session |
-| 共享网站状态 | Cookie、LocalStorage、IndexedDB、Cache Storage、HTTP 缓存、Service Worker 和权限可以跨 Session 共享 |
-| 隔离页面状态 | Page、View、标签、Popup、活动页和双页焦点按 Session 隔离 |
-| 隔离调试状态 | Debugger、请求拦截、Ref、Snapshot 和实况画面按 Session 隔离 |
+| Session 级状态隔离 | 选择、注册、视图引用、调试状态和制品都按 Session 保存，互不覆盖 |
+| 共享网站状态 | Cookie、LocalStorage、IndexedDB、Cache Storage、HTTP 缓存、Service Worker 和权限都由用户的浏览器保留，跨 Session 共享 |
+| 共享浏览器标签 | 工具面只能连外部 CDP：多个 Session 连接同一个 endpoint 时看到的是同一批标签页，插件不按 Session 拆分或复制标签 |
+| 隔离调试状态 | Debugger、请求拦截、Ref、Snapshot 和实况画面按 Session 分别保存 |
 | 隔离文件 | Artifact、Takeover 和 Controller 状态按 Session 隔离 |
-| 跟踪页面来源 | `window.open()` 页面继承正确 Owner；无法确认来源的页面不会暴露给其他 Session |
+| 页面来源跟踪 | 只在托管 `shared-persistent` 模式下启用：`window.open()` 页面继承 Owner，来源不明的页面会被关闭（该模式工具面不可达） |
 | 恢复页面布局 | 浏览器 Context 重建后，恢复各 Session 的地址、活动标签和双页布局 |
 
 ## 目录结构
@@ -324,22 +326,22 @@ npm run verify:persist -- --phase=verify    # 重启 Host 后复核（需要新�
 | RPC | `verify:rpc` | 16/16 |
 | 持久化 | `verify:persist` | prepare 7/7 + verify 5/5 |
 
-Runtime 层使用真实 Chrome（`155.0.8059.85`）经 `external-cdp` 连接本地夹具站点。需要提醒的是：Recorder 保留窗口的 30 分钟结论来自**虚拟时间模拟**，只证明保留与淘汰算法边界，不等同于真实墙钟 30 分钟稳定性压测。
+Runtime 层使用真实 Chrome（`155.0.8059.85`）经 `external-cdp` 连接本地夹具站点。数字来自本机 `.sandbox/reports/` 里的运行报告，换环境重跑会变。Recorder 的默认保留窗口是 180 秒（`retentionMs`），超出窗口的事件按淘汰策略丢弃，这是算法边界，不等同于长时间稳定性压测。
 
 ## 已知边界
 
 这些是当前版本真实存在、且有意保留的行为，不是待修的 TODO：
 
-- **托管启动不在工具面暴露**：`browser_provider` 只接受 `external-cdp`，`providerBinding` 只有 `disconnected` / `external-cdp` 两个写入点。`executablePath`、`headless`、代理等托管配置只在 runtime 受保护方法和 `verify:managed` 中生效并验证。
+- **托管启动不在工具面暴露**：`browser_provider` 只接受 `external-cdp`，工具面能写出的 `providerBinding` 只有 `external-cdp` 一种（断开时回到 `disconnected`）。接口里另有 `shared-persistent`（`window.open` 页面归属跟踪所在的分支）与 `isolated-persistent` 两种绑定，由托管启动路径写入，工具面不可达；`isolated-managed` 目前只有类型声明，没有赋值点。`executablePath`、`headless`、代理等托管配置只在 runtime 受保护方法和 `verify:managed` 中生效并验证。
 - **托管下载元数据落后**：`src/provider/chromium-manager.ts` 的 `KNOWN_ARCHIVES` 只登记了 `149.0.7827.55`，而 playwright-core 1.64.1 期望 `156.0.8078.4`，缺元数据时会 fail-closed 拒绝下载。这是刻意的完整性策略，不是 bug。
 - **`browser_live_view adaptive` 依赖面板**：面板没打开时没有可用尺寸上报，返回可恢复的 `ADAPTIVE_SIZE_UNAVAILABLE`。
-- **扩展只读**：外部 CDP 模式下 `browser_extensions` 是历史注册表的只读兼容端点；扩展的安装/启停需要直接操作已连接的浏览器。
-- **`subagentInteractive` 默认 `false`**：委派子会话调用导航、点击、对话框等交互类工具会被拒绝，顶层会话按 permission preset 决定 allow/ask。
+- **扩展工具只读**：`browser_extensions` 只有 `list` 一种 action，读的是历史注册表快照；面板 RPC 另有安装与启停入口，Agent 侧没有对应工具，装扩展需要直接操作已连接的浏览器。
+- **`subagentInteractive` 默认 `false`**：委派子会话调用导航、点击、对话框等交互类工具会被拒绝。这条限制以「该工具由本插件在全局模式注册，或该 Session 的控制器已激活」为前提；默认的按 Session 模式下子会话本身拿不到这些工具，所以实际只在 `global` 模式下可观察。
 - **不覆盖的范围**：DRM、Native Messaging、Manifest V2、CAPTCHA/验证码、Passkey/WebAuthn、任意站点的反自动化策略，以及被调试应用自身的业务正确性。
 
 ## 兼容范围
 
-版本 `1.0.0-rc8` 的目标宿主是 DSH `0.2.1-rc.2` / `0.2.1-rc.3`，要求 Cordis `~4.0.5`、Schemastery `~3.18.5`、Node `^22.19.0 || >=24.0.0`。RC7 及更早版本不支持 DSH `0.2.x`，`0.1.x` 时期的验证结论不适用。
+版本 `1.0.0-rc8` 的目标宿主是 DSH `0.2.1-rc.2` / `0.2.1-rc.3`，要求 Cordis `~4.0.5`、Schemastery `~3.18.5`、Node `^22.19.0 || >=24.0.0`。更早的 `1.0.0-rc7` 及之前版本只对齐过 DSH `0.1.x`，未在 DSH `0.2.x` 上验证，`0.1.x` 时期的验证结论不适用。
 
 已在 Windows + Node 22.x + pnpm 11.x + 真实 Chrome 上实测；macOS、Linux 与其他 Chromium 分支未做实机验证。
 
