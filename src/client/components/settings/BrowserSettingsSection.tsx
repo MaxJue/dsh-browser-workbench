@@ -390,20 +390,22 @@ export function BrowserSettingsSection({ port }: BrowserSettingsSectionProps) {
               </p>
               {platform !== 'mac' ? (
                 <>
-                  <p style={S.hint}>Windows（cmd）：</p>
+                  <p style={S.hint}>Windows（cmd，整行复制直接粘贴执行）：</p>
                   <CopyCommand
                     lines={[
-                      'cd /d "%ProgramFiles%\\Google\\Chrome\\Application"',
-                      'start "" chrome.exe --remote-debugging-port=9222 --user-data-dir=%TEMP%\\dsh-chrome',
+                      'start "" "%ProgramFiles%\\Google\\Chrome\\Application\\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%TEMP%\\dsh-chrome"',
                     ]}
                   />
                   <p style={S.hint}>Edge 同理（默认装在 %ProgramFiles(x86)%）：</p>
                   <CopyCommand
                     lines={[
-                      'cd /d "%ProgramFiles(x86)%\\Microsoft\\Edge\\Application"',
-                      'start "" msedge.exe --remote-debugging-port=9222 --user-data-dir=%TEMP%\\dsh-edge',
+                      'start "" "%ProgramFiles(x86)%\\Microsoft\\Edge\\Application\\msedge.exe" --remote-debugging-port=9222 --user-data-dir="%TEMP%\\dsh-edge"',
                     ]}
                   />
+                  <p style={S.hint}>
+                    提示找不到文件说明浏览器不在默认目录（例如只装给当前用户，或装在非系统盘）：
+                    把引号里的路径换成你的真实安装位置即可，不需要切换盘符或目录。
+                  </p>
                 </>
               ) : null}
               {platform !== 'windows' ? (

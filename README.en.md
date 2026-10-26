@@ -98,10 +98,12 @@ The binding is **global**: per-session binding is not offered. `session-select` 
 A normally launched window cannot be attached, and Chrome 136+ also requires a separate user-data directory for the debug instance. The endpoint area ships Windows cmd and macOS launch commands, each with a Copy button, and shows only the set matching the current UA:
 
 ```powershell
-chrome.exe --remote-debugging-port=9222 --user-data-dir=%TEMP%\dsh-chrome
+start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%TEMP%\dsh-chrome"
 # or
-msedge.exe --remote-debugging-port=9222 --user-data-dir=%TEMP%\dsh-edge
+start "" "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" --remote-debugging-port=9222 --user-data-dir="%TEMP%\dsh-edge"
 ```
+
+The commands point at the executable by absolute path instead of `cd`-ing into the install directory, so they paste as-is regardless of which drive the browser lives on; if it reports "file not found", replace the quoted path with your real install location. `--user-data-dir` is quoted too, so a user name containing spaces does not truncate `%TEMP%`.
 
 A separate `--user-data-dir` starts from a fresh profile, so log in once in that window. To reuse your daily profile, point `--user-data-dir` at it — but make sure no other Chrome instance is holding that directory. Success is `http://127.0.0.1:9222/json/version` returning JSON; the "allow remote debugging" toggle built into Chrome does not expose that endpoint — do not rely on it.
 

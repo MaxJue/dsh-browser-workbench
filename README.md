@@ -98,10 +98,12 @@ Agent 对话、真实页面、标签栏与地址栏都在 DSH 右侧栏的同一
 普通双击打开的窗口无法被附加，Chrome 136+ 还要求调试实例使用独立的用户数据目录。端点区自带 Windows cmd 与 macOS 两套启动命令，各配一个「复制」按钮，并按 UA 只显示当前系统的那一套：
 
 ```powershell
-chrome.exe --remote-debugging-port=9222 --user-data-dir=%TEMP%\dsh-chrome
+start "" "%ProgramFiles%\Google\Chrome\Application\chrome.exe" --remote-debugging-port=9222 --user-data-dir="%TEMP%\dsh-chrome"
 # 或
-msedge.exe --remote-debugging-port=9222 --user-data-dir=%TEMP%\dsh-edge
+start "" "%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe" --remote-debugging-port=9222 --user-data-dir="%TEMP%\dsh-edge"
 ```
+
+命令直接给可执行文件的绝对路径，不先 `cd` 到安装目录，所以装在任何盘、任何目录都照原样粘贴即可；报「找不到文件」就把引号里的路径换成真实安装位置。`--user-data-dir` 也加了引号，避免用户名带空格时 `%TEMP%` 被截断。
 
 用独立 `--user-data-dir` 是全新配置，登录态需要在那个窗口里重新登录一次；想复用日常配置就把 `--user-data-dir` 指向你的 Chrome 用户目录，但必须确认没有另一个 Chrome 实例正占用它。启动后访问 `http://127.0.0.1:9222/json/version` 能看到 JSON 才算成功；Chrome 自带的「允许远程调试」开关不提供该接口，不要用它。
 
