@@ -1,0 +1,165 @@
+{
+  "name": "dsh-browser-workbench",
+  "version": "1.0.0-rc8",
+  "description": "Agent-native browser DevTools workbench with session-scoped controller arbitration for DeepSeek Harness",
+  "keywords": [
+    "deepseek-harness",
+    "dsh",
+    "browser",
+    "devtools",
+    "playwright",
+    "debugging",
+    "agent"
+  ],
+  "homepage": "https://github.com/HakureiMonika/dsh-browser-workbench#readme",
+  "bugs": {
+    "url": "https://github.com/HakureiMonika/dsh-browser-workbench/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/HakureiMonika/dsh-browser-workbench.git"
+  },
+  "author": {
+    "name": "HakureiMonika",
+    "email": "107752645+HakureiMonika@users.noreply.github.com",
+    "url": "https://github.com/HakureiMonika"
+  },
+  "type": "module",
+  "main": "lib/index.mjs",
+  "types": "lib/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.mts",
+      "default": "./lib/index.mjs"
+    },
+    "./client": {
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "lib",
+    "assets",
+    "cordis.patch.yml",
+    "README.md",
+    "README.en.md",
+    "SECURITY.md",
+    "SECURITY.en.md",
+    "PUBLISHING.md",
+    "TECHNICAL.md",
+    "TECHNICAL.en.md",
+    "VALIDATION.md",
+    "VALIDATION.en.md",
+    "LICENSE"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types --test tests/**/*.test.mjs",
+    "test:watch": "node --experimental-strip-types --test --watch tests/**/*.test.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "npm run typecheck && tsdown",
+    "verify:tools": "node --experimental-transform-types scripts/verify/e2e-tools.mjs",
+    "verify:instance": "node --experimental-transform-types scripts/verify/e2e-instance.mjs",
+    "verify:panel": "node --experimental-transform-types scripts/verify/e2e-panel.mjs",
+    "verify:config": "node --experimental-transform-types scripts/verify/e2e-config.mjs",
+    "verify:rpc": "node --experimental-transform-types scripts/verify/e2e-rpc.mjs",
+    "verify:extensions": "node --experimental-transform-types scripts/verify/e2e-extensions.mjs",
+    "verify:persist": "node --experimental-transform-types scripts/verify/e2e-persist.mjs",
+    "verify:managed": "node --experimental-transform-types scripts/verify/e2e-managed.mjs",
+    "verify:sandbox": "powershell -NoProfile -File scripts/verify/sandbox.ps1"
+  },
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ],
+      "platform": "web"
+    },
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "~4.0.5",
+    "@deepseek-ai/dsh-agent": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-attachment": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-connection": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-conversation": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-layout": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-renderer": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-session": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-sidebar-right": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-slots": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-fs": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-llm": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-permission-presets": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-session": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-tools": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-util-values": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/dsh-working-directory": "^0.2.1-rc.2 || ^0.2.1-rc.3",
+    "@deepseek-ai/schemastery": "~3.18.5",
+    "react": "^18.2.0 || ^19.0.0"
+  },
+  "dependencies": {
+    "@jridgewell/trace-mapping": "0.3.31",
+    "playwright-core": "1.64.1",
+    "yauzl-promise": "4.0.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "4.0.5",
+    "@deepseek-ai/cordis-plugin-group": "1.0.5",
+    "@deepseek-ai/cordis-plugin-include": "1.0.10",
+    "@deepseek-ai/cordis-plugin-loader": "1.0.6",
+    "@deepseek-ai/dsh-agent": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-app-boot": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-attachment": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-attachment-local": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-connection": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-conversation": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-layout": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-renderer": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-session": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-sidebar-right": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-client-ui-slots": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-commands": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-fs": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-home-paths": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-http-proxy": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-launch-environment": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-llm": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-permission-presets": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-ptc-runtime": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-sandbox": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-sandbox-policy": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-scope": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-session": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-session-projection": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-settings": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-shell": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-subprocess": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-system-prompt": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-tools": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-user-approval": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-util-values": "0.2.1-rc.3",
+    "@deepseek-ai/dsh-working-directory": "0.2.1-rc.3",
+    "@deepseek-ai/schemastery": "3.18.5",
+    "@types/node": "26.6.5",
+    "@types/react": "19.3.0",
+    "lightningcss": "1.33.0",
+    "react": "19.3.1",
+    "tsdown": "0.23.1",
+    "typescript": "6.0.3"
+  },
+  "license": "MIT"
+}

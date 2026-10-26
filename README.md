@@ -1,0 +1,319 @@
+<div align="center">
+
+# DSH BrowserWorkbench
+
+### 把完整 Chromium DevTools 交给 DSH Agent
+
+不只看页面。能点击、能断点、能抓请求、能读 Source Map，还能把现场证据留下。
+
+![License](https://img.shields.io/badge/license-MIT-2563EB?style=for-the-badge)
+![DSH](https://img.shields.io/badge/DSH-0.1.5--rc.2%20%7C%200.1.6--alpha.1%20%7C%200.1.6--alpha.2-7C3AED?style=for-the-badge)
+![Node](https://img.shields.io/badge/Node-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-16A34A?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Status](https://img.shields.io/badge/status-Release%20Candidate-F97316?style=for-the-badge)
+
+[立即安装](#安装) · [看图了解](#能力展示) · [30 个工具](#功能介绍) · [测试结果](#能力测试结果) · [技术细节](./TECHNICAL.md) <br> <br>
+当前语言为简体中文 | [English](./README.en.md)
+
+</div>
+
+---
+
+> [!IMPORTANT]
+> 这是独立开发的社区插件，不是 DeepSeek 官方发布、维护或背书的插件。它不会修改 DeepSeek Harness 的核心代码。<br>
+> 本插件仍在开发中，若遭遇**bug**或任何意料外的情况均可通过issue向开发者汇报。
+>> *如果该插件帮上你的忙了，还请点颗星让更多人看见~非常感谢 Thanks♪(･ω･)ﾉ*
+
+## 插件简介
+
+前端调试最头疼的是什么？看不到页面结构、抓不到请求细节、断点打不进去、错误只有一句话。Agent 遇到复杂网页问题时更麻烦——只能截个图、描述几句,然后陷入"刷新试试""清缓存看看"的循环。
+
+BrowserWorkbench 在 DSH Web 右侧栏嵌入一个完整的 Chromium 工作台，配备 30 个专门定制的自动化工具。Agent 现在能直接读页面结构、操作元素、查看 Console、追踪请求、下断点、读调用栈、解析 Source Map、分析性能，并把操作前后的完整现场记录下来。从基础的点击滑动，到深度的断点调试和性能瓶颈定位，全在一个 Session 里完成。
+
+BrowserWorkbench 只连接用户已经开启远程调试的 Chrome 或 Edge，不下载、启动或托管 Chromium。每个正式 Session 使用同一个外部 CDP 浏览器连接，页面、标签和登录状态都保留在用户浏览器中。
+
+![BrowserWorkbench 嵌入 DSH Web 的实况工作台](./assets/browser-workbench-hero.png)
+
+## 目录
+
+- [能力测试结果](#能力测试结果)
+- [能力展示](#能力展示)
+- [安装](#安装)
+- [功能介绍](#功能介绍)
+  - [浏览与操作](#浏览与操作)
+  - [Console 与请求](#console-与请求)
+  - [断点与源码](#断点与源码)
+  - [性能与诊断](#性能与诊断)
+  - [实况与人工接管](#实况与人工接管)
+  - [扩展与浏览器环境](#扩展与浏览器环境)
+  - [Session 控制](#session-控制)
+- [技术细节](#技术细节)
+- [测试报告 (VALIDATION.md)](./VALIDATION.md)
+- [English Version (README.en.md)](./README.en.md)
+- [兼容范围](#兼容范围)
+- [使用反馈](#使用反馈)
+- [License](#license)
+
+## 能力测试结果
+
+所有测试在真实 Chromium、真实 DSH Web 和实际生产代码环境中执行,不使用模拟器或简化场景。
+
+**核心能力**
+
+- **30 个浏览器工具**在真实 Chromium 环境中全部跑通
+- **9 个原生工作台视图**在真实 DSH Web 中全部验收通过
+- **多插件共存**已通过单 Session 单浏览器锁定专项、真实 Agent Scope 集成和 DSH `0.1.5-rc.2` Web 验收
+- **4 个 DSH 版本**兼容性测试全线通过
+- **长时间高强度运行**(30 分钟 × 3 档),性能稳定,内存不漏
+
+**专项验证**
+
+| 测试项目 | 覆盖范围 | 结果 |
+| --- | --- | --- |
+| **完整工具链回归** | 30 个工具全覆盖 | **全部通过** |
+| **DSH Web 原生工作台** | 9 个视图 + 多 Session + 多 Pane | **全部通过** |
+| **多插件共存** | 单 Session 首次选择、锁定、释放、独立选择和重启恢复 | **RC2 实机通过** |
+| **复杂网页故障** | 异步 + 跨页 + 生产代码 | **插件能力 PASS** |
+| **多版本兼容** | 4 个 DSH 版本 | **全线通过** |
+| **性能压力** | 高频操作 × 30 分钟 × 3 档 | **稳定运行** |
+
+完整测试报告见 [VALIDATION.md](./VALIDATION.md)。
+
+## 能力展示
+
+### 一个窗口，完整调试链路
+
+Agent 对话、真实页面、标签栏、地址栏和调试结果全在 DSH 右侧栏。当页面出现异常时，不用在多个窗口来回切换——直接在原位查看 DOM 结构、Console 输出、Network 请求和脚本堆栈。
+
+**真实使用案例**：页面布局突然错乱。Agent 调用 `browser_snapshot` 读取 DOM 结构，发现某个容器的 `display` 被异步脚本改成了 `none`。接着用 `browser_debugger` 在相关脚本里下断点，配合 Source Map 找到原始代码位置，最终定位到一个状态更新时序问题。全程无需人工介入，现场证据完整清晰。
+
+### 首次选择，Session 内保持一致
+
+![正式 Session 首次选择浏览器工具](./assets/browser-workbench-session-controller-1.png)
+
+正式 Session 第一次使用浏览器前，需要选择 BrowserWorkbench 或当前 Profile 中已有的其他浏览器工具。选择前，当前 Session 暂时不向 Agent 暴露浏览器工具。
+
+![BrowserWorkbench 选择后在当前 Session 保持锁定](./assets/browser-workbench-session-controller-2.png)
+
+选择 BrowserWorkbench 后，当前 Session 只使用 BrowserWorkbench；选择其他浏览器工具后，BrowserWorkbench 不会在该 Session 注册工具或创建浏览器资源。选定后不能中途更换，需要换插件时新建 Session。其他 Session 可以独立选择，第三方插件本身不被停止或修改。
+
+![当前 Session 已仲裁的 BrowserWorkbench 工具](./assets/browser-workbench-session-controller-3.png)
+
+释放 BrowserWorkbench 资源只会关闭它自己的页面和调试状态，不会解除当前 Session 的工具选择。DSH 重启或 Agent Scope 替换后，原选择继续保持。
+
+### 线上压缩代码？直接还原
+
+![Debugger、真实调用栈与 Source Map](./assets/browser-workbench-debugger.png)
+
+代码被 Webpack 压缩成一行？没关系。连上 CDP Debugger，挂上 Source Map，直接在原始源码里找问题。调用栈、变量作用域、断点位置全都能准确映射回去。
+
+**真实使用案例**：线上报错 `Uncaught TypeError: Cannot read property 'data' of undefined`，但堆栈指向的是压缩后的 `bundle.min.js:1:47392`。Agent 用 `browser_debugger` 暂停脚本，读取 Source Map，把这个位置映射到 `src/api/fetchUser.ts:23:15`，发现是异步请求的错误处理缺失。
+
+### 请求时序，一清二楚
+
+![Network Journal 中的连续布局请求](./assets/browser-workbench-network.png)
+
+抓包列表按时间排列，`mode` 和 `generation` 的变化直接标出异步任务的先后顺序。专治状态覆盖、响应迟到这类时序 Bug。
+
+**真实使用案例**：页面偶尔显示错误的用户信息。Agent 用 `browser_network_requests` 捕获所有 `/api/user` 请求，发现同时发出了两个请求，但旧请求的响应比新请求晚 200ms 到达，覆盖了正确结果。定位到根因是组件快速切换时没有取消前一个请求。
+
+### 双页实况，同时盯梢
+
+![BrowserWorkbench 上下双页实况](./assets/browser-workbench-split-view.png)
+
+两个真实页面，独立画面，独立焦点。做响应式检查时上下排列，跨页面对比时左右排列。
+
+**真实使用案例**：验证移动端和桌面端的布局一致性。Agent 用 `browser_split_view` 同时加载两个不同 Viewport 的页面，用 `browser_snapshot` 分别读取关键元素的位置和样式，发现移动端某个按钮被遮挡。
+
+### 保护现场，有据可查
+
+![Debug Session、Topology、Recorder 与 Action Timeline](./assets/browser-workbench-diagnose-1.png)
+
+Debug Session 把页面身份、操作时间线、Context Topology 和 Build Identity 打包在一起。
+
+![Checkpoint、Compare、Incident 与 Takeover 摘要](./assets/browser-workbench-diagnose-2.png)
+
+操作前后各存一个 Checkpoint，直接 Compare 生成 Incident 报告。图中是 BrowserWorkbench 精准识别出演示应用预埋故障的实况。
+
+**真实使用案例**：用户反馈"点击提交后页面没反应"。Agent 用 `browser_diagnose` 在点击前后各保存一个 Checkpoint，Compare 发现提交按钮的 `disabled` 属性被设为 `true` 但从未恢复。结合 Network Journal 发现请求返回了 500 错误，但前端没有处理，导致按钮永久禁用。
+
+### 性能问题，无处藏身
+
+![Performance 工具栏与性能制品](./assets/browser-workbench-performance.png)
+
+CPU 飙高？内存泄漏？用 Trace 看主线程阻塞，用 CPU Profile 找热点函数，用 Heap Snapshot 查对象保留。所有大文件自动存入 Session 隔离的 Artifact Store，不会撑爆 AI 的上下文。
+
+**真实使用案例**：页面滚动卡顿。Agent 用 `browser_profile` 采集 CPU Profile，发现某个图片懒加载函数在每次滚动事件中都被调用，且没有节流。定位到性能瓶颈后，建议加入 `debounce` 处理。
+
+## 安装
+
+需要 Node.js `^22.19.0` 或 `>=24.0.0`，以及一个可以正常启动的 DSH Web Profile。
+
+`1.0.0-rc8` 面向 DSH `0.2.1-rc.2`。安装前请确认本地构建包或 npm Registry 中存在该精确版本；项目尚未执行发布流程。
+
+```powershell
+dsh plugin --profile web add dsh-browser-workbench@1.0.0-rc8 --ignore-scripts --config.auto-install-peers=false
+```
+
+或使用本地 tarball：
+
+```powershell
+dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scripts --config.auto-install-peers=false
+```
+
+在 Profile 的 `cordis.patch.yml` 中启用：
+
+```yaml
+- insert:
+    - id: browser-tools
+      name: dsh-browser-workbench
+```
+
+启动 Chrome 并开启远程调试（示例：`chrome.exe --remote-debugging-port=9222`），再启动 DSH Web。新建 Session 后打开右侧 BrowserWorkbench 面板，按“连接现有 Chrome”中的三步操作绑定 `http://127.0.0.1:9222`。连接失败时只需检查 Chrome 进程、启动参数和端口。
+
+从历史包 `dsh-browser-tools` 升级时，先移除旧包。保留 `id: browser-tools` 和 `$DSH_HOME/browser-tools`。两个包不要同时安装在同一个 Profile 中。
+
+## 功能介绍
+
+### 浏览与操作
+
+| 功能 | 说明 | 工具 |
+| --- | --- | --- |
+| 标签管理 | 查看、创建、切换和关闭标签 | `browser_tabs` |
+| 页面导航 | 打开 URL、后退、前进和刷新 | `browser_navigate`, `browser_navigate_back` |
+| 读取页面 | 读取页面结构、元素位置、属性和查询结果 | `browser_snapshot`, `browser_get_attribute`, `browser_query` |
+| 操作页面 | 点击、悬停、滚动、输入文字、按键、选择下拉项和等待变化 | `browser_click`, `browser_hover`, `browser_scroll`, `browser_type`, `browser_press_key`, `browser_select_option`, `browser_wait_for` |
+| 处理弹窗 | 接受或拒绝页面弹窗，并填写 Prompt | `browser_handle_dialog` |
+| 执行脚本 | 在页面或指定元素中执行 JavaScript | `browser_evaluate` |
+| 截图 | 保存当前页面画面 | `browser_take_screenshot` |
+| 上传下载 | 上传本地文件，捕获并保存下载文件 | `browser_upload_file`, `browser_download` |
+
+### Console 与请求
+
+| 功能 | 说明 | 工具 |
+| --- | --- | --- |
+| 读取 Console | 查看日志、警告、错误和重复消息 | `browser_console_messages` |
+| 查看请求 | 查看请求地址、方法、状态、资源类型和发生顺序 | `browser_network_requests` |
+| 查看请求内容 | 读取请求和响应 Body | `browser_network_requests` |
+| 暂停请求 | 在请求或响应阶段拦截流量 | `browser_network_control` |
+| 放行或终止 | 对被暂停的请求执行 Continue 或 Abort | `browser_network_control` |
+| 模拟响应 | 返回自定义状态、Header 和 Body | `browser_network_control` |
+| 重发请求 | 重放已经发生的请求 | `browser_network_control` |
+| 自动恢复 | 拦截超时后自动放行，避免页面卡住 | `browser_network_control` |
+
+### 断点与源码
+
+| 功能 | 说明 | 工具 |
+| --- | --- | --- |
+| 连接调试器 | 连接当前页面的 CDP Debugger | `browser_debugger` |
+| 断点控制 | 设置断点、暂停、继续、单步进入、单步跳过和单步跳出 | `browser_debugger` |
+| 查看调用栈 | 查看函数调用顺序、脚本位置和暂停原因 | `browser_debugger` |
+| 查看变量 | 查看 Local、Closure 和 Global 中的变量 | `browser_debugger` |
+| 读取脚本 | 查看页面加载的脚本和运行时源码 | `browser_debugger` |
+| 还原源码 | 把压缩代码位置映射回原始文件和行列 | `browser_debugger`, `browser_diagnose` |
+| 识别构建版本 | 记录脚本内容和构建身份，避免读错版本 | `browser_diagnose` |
+| 区分执行环境 | 区分主世界、隔离世界和暂停帧 | `browser_debugger`, `browser_diagnose` |
+
+### 性能与诊断
+
+| 功能 | 说明 | 工具 |
+| --- | --- | --- |
+| 记录 Trace | 记录页面主线程、网络和渲染过程 | `browser_profile` |
+| 记录操作过程 | 保存页面动作、Snapshot、请求和时间线 | `browser_profile` |
+| 分析 CPU | 找到耗 CPU 的函数和调用路径 | `browser_profile` |
+| 统计覆盖 | 查看 JavaScript 和 CSS 使用情况 | `browser_profile` |
+| 查看内存 | 保存 Heap Snapshot，调查对象保留问题 | `browser_profile` |
+| 观察内存增长 | 使用 Heap Sampling 观察长任务中的分配热点 | `browser_profile` |
+| 建立诊断会话 | 把页面、操作、上下文和构建信息放在一起 | `browser_diagnose` |
+| 保存 Checkpoint | 记录操作前后的页面和身份状态 | `browser_diagnose` |
+| 对比变化 | 比较两个 Checkpoint，标出变化和回退 | `browser_diagnose` |
+| 生成 Incident | 汇总动作、Console、请求、身份和对比结果 | `browser_diagnose` |
+| 记录关键事件 | 按 Off、Rolling、Deep、Metadata-only 和 Incident 模式记录 | `browser_diagnose` |
+| 保存大文件 | 把 Trace、Profile、Heap 和报告保存到 Session 目录 | `browser_profile`, `browser_diagnose` |
+
+### 实况与人工接管
+
+| 功能 | 说明 | 工具 |
+| --- | --- | --- |
+| 查看实况 | 在右侧栏持续查看当前页面 | `browser_live_view` |
+| 自动调整尺寸 | 页面跟随面板尺寸变化，避免输入坐标错乱 | `browser_live_view`, `browser_emulate` |
+| 上下双页 | 同时查看两个页面 | `browser_split_view` |
+| 左右双页 | 横向查看两个页面 | `browser_split_view` |
+| 人工点击 | 用鼠标直接操作页面 | `browser_takeover` |
+| 人工输入 | 用键盘输入文本和组合键 | `browser_takeover` |
+| 中文输入 | 正常输入中文，不会拆成错误按键 | `browser_takeover` |
+| 粘贴内容 | 使用最终粘贴事件，不读取剪贴板历史 | `browser_takeover` |
+| 人工接管 | 暂时接管页面，完成后把控制权还给 Agent | `browser_takeover` |
+| 防止旧输入 | 页面尺寸或画面变化后，拒绝过期坐标输入 | `browser_takeover` |
+
+### 扩展与浏览器环境
+
+| 功能 | 说明 | 工具 |
+| --- | --- | --- |
+| 扩展管理边界 | 当前 External CDP 模式不读取或管理浏览器扩展 | `browser_extensions` |
+| 连接浏览器 | 连接已用远程调试启动的 Chrome/Edge | `browser_provider` |
+| 保留浏览器状态 | Cookie、缓存、权限和扩展状态由用户浏览器保留 | `browser_provider` |
+| 断开连接 | 只释放 DSH 的 CDP 连接，不关闭用户浏览器 | `browser_provider` |
+| 模拟设备 | 设置 Viewport、设备、地区、时区、网络、CPU 和离线状态 | `browser_emulate` |
+| 模拟权限 | 控制页面权限 | `browser_emulate` |
+| 配置代理 | 使用系统代理、直连或自定义 HTTP / HTTPS / SOCKS 代理 | 插件配置 |
+
+### Session 控制
+
+| 功能 | 说明 |
+| --- | --- |
+| 首次选择 | 正式 Session 第一次使用浏览器前，选择 BrowserWorkbench 或其他浏览器工具 |
+| Session 锁定 | 选择后不能在同一个 Session 中更换浏览器插件；需要更换时新建 Session |
+| 选择前保护 | 尚未选择时，当前 Session 暂时不向 Agent 暴露识别到的浏览器工具 |
+| 按需注册 | 选择 BrowserWorkbench 后，只在当前 Session 注册 30 个工具 |
+| 全局模式 | 独占 Profile 可以全局注册 BrowserWorkbench 工具 |
+| 安全降级 | 全局模式发现已有浏览器工具时，自动改为按 Session 选择 |
+| 工具替换 | 选择 BrowserWorkbench 后，只在当前 Session 中遮蔽同名工具并隐藏第三方独有浏览器工具 |
+| 选择其他工具 | BrowserWorkbench 不在该 Session 注册工具或创建浏览器资源，第三方工具恢复可见 |
+| 释放资源 | 关闭 BrowserWorkbench 页面和调试状态，但不解除该 Session 的 BrowserWorkbench 锁定 |
+| 重启恢复 | DSH 重启或 Agent Scope 替换后，继续恢复该 Session 已保存的选择 |
+| 旧状态迁移 | 旧 BrowserWorkbench 激活状态继续锁定；旧 `other` 状态迁移为尚未选择 |
+| 隔离 Session | 一个 Session 的选择、标签和调试状态不会改变其他 Session 的选择 |
+| 共享网站状态 | Cookie、LocalStorage、IndexedDB、Cache Storage、HTTP 缓存、Service Worker 和权限可以跨 Session 共享 |
+| 隔离页面状态 | Page、View、标签、Popup、活动页和双页焦点按 Session 隔离 |
+| 隔离调试状态 | Debugger、请求拦截、Ref、Snapshot 和实况画面按 Session 隔离 |
+| 隔离文件 | Artifact、Takeover 和 Controller 状态按 Session 隔离 |
+| 跟踪页面来源 | `window.open()` 页面继承正确 Owner；无法确认来源的页面不会暴露给其他 Session |
+| 恢复页面布局 | 浏览器 Context 重建后，恢复各 Session 的地址、活动标签和双页布局 |
+| 生命周期保护 | 支持原子注册、失败回滚、冷恢复、Agent 替换保护和资源释放 |
+
+## 技术细节
+
+完整配置、工具注册模式、状态模型、安全边界、内部标识和工具清单见 [TECHNICAL.md](./TECHNICAL.md)。
+
+## 测试报告
+
+多环境真实工况实测记录见 [VALIDATION.md](./VALIDATION.md)。本地隔离验证可直接复跑：
+
+```powershell
+npm run verify:tools       # 30 个 browser_* 工具的运行时回归（真实 Chrome + 本地夹具站点）
+npm run verify:extensions  # 扩展层：本地 MV3 安装、注册表落盘、禁用/启用/卸载、popup 与非法输入
+npm run verify:managed     # 托管层：executablePath/headless、custom/direct/system 代理、HTTPS CONNECT、离线安装
+npm run verify:sandbox     # 独立 DSH_HOME 启动实例，打印带 token 的地址
+npm run verify:instance    # 实例层：Client bundle、composer 控件、认证 RPC 往返
+npm run verify:panel       # 面板层：正式 Session → 控制器菜单激活 → 9 视图 → Provider → 实况 → 人工接管
+npm run verify:config      # 配置层：13 项配置在运行时的真实效果
+npm run verify:rpc         # RPC/持久化层：认证边界、信封契约、控制器选择跨刷新
+npm run verify:persist -- --phase=prepare   # 认领控制器并记录 marker
+npm run verify:persist -- --phase=verify    # 重启 Host 后复核（需要新的 token）
+```
+
+## 兼容范围
+
+版本 `1.0.0-rc8` 的目标宿主为 DSH `0.2.1-rc.2`，要求 Cordis `~4.0.5`、Schemastery `~3.18.5`。新版验证已覆盖依赖一致性、构建、真实 App Boot Session Controller 集成和固定 Chromium 的 30 工具完整回归；真实 DSH Web Profile 已在独立进程 + 独立 `DSH_HOME` 的沙箱中验证 Client bundle 注入、composer 控件、`/api/browser-tools` 认证往返、侧栏面板本体的 9 个视图（含 Provider 连接、实况自适应与面板内人工接管/真实键鼠输入）、扩展安装与注册表持久化、托管启动（`executablePath`/`headless`/三种代理模式/HTTPS `CONNECT`/代理认证/离线安装）、21 项配置的生效路径，以及控制器选择跨整页刷新和跨 Host 进程重启的服务端持久化，详见 [VALIDATION.md](./VALIDATION.md) 第十四、十五节。托管启动不在工具面暴露（Provider 只接受 `external-cdp`），因此由 `verify:managed` 直接调用 runtime 受保护方法验证；托管下载的已验证元数据表仍停留在 `149.0.7827.55`，对当前 playwright-core 期望的 `156.0.8078.4` 会 fail-closed 拒绝下载（需联网补表）。RC7 及更早版本不支持 DSH `0.2.x`。
+
+候选状态以外部 candidate-identity.json 和 tarball 摘要为准。
+
+## 使用反馈
+
+遇到缺陷、兼容问题或有新功能建议，请提交 [GitHub Issue](https://github.com/HakureiMonika/dsh-browser-workbench/issues)。带上 DSH 版本、BrowserWorkbench 版本、操作系统、Node.js 版本和同时加载的浏览器插件，可以更快定位问题。
+
+安全漏洞请按 [安全策略](./SECURITY.md) 私密报告。不要把凭据、Cookie、会话数据或未脱敏日志放进公开 Issue。
+
+## License
+
+[MIT](./LICENSE)
