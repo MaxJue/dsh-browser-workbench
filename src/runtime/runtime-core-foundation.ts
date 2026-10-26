@@ -81,8 +81,8 @@ export abstract class BrowserRuntimeFoundation {
   }
 
   setControllerIdentityResolver(resolver: (sessionId: string) => BrowserControllerIdentity | undefined): void {
-    // Runtime 鍙鍙栨帶鍒跺櫒韬唤骞跺啓鍏ヨ瘉鎹紝涓嶆寔鏈?Controller Store锛屼篃涓嶅弬涓庡伐鍏锋敞鍐岀姸鎬佹満銆?
-    // 璇ュ崟鍚戜緷璧栭伩鍏?Browser Runtime 涓?Agent Scope 鐢熷懡鍛ㄦ湡浜掔浉璋冪敤褰㈡垚寰幆鎵€鏈夋潈銆?
+    // Runtime 只读取控制器身份并写入证据，不持有Controller Store，也不参与工具注册状态机。
+    // 该单向依赖避免Browser Runtime 与Agent Scope 生命周期互相调用形成循环所有权。
     this.controllerIdentityResolver = resolver
   }
 
@@ -91,17 +91,17 @@ export abstract class BrowserRuntimeFoundation {
   }
 
   protected async releaseHandles(handles: Iterable<ElementHandle>): Promise<void> {
-    // 鍚屼竴涓狤lementHandle鍙兘鐢变竴涓€昏緫鎵€鏈夎€呬繚鐣欙紱鐢⊿et鍘婚噸鍚庣粺涓€閲婃斁锛岄伩鍏峉napshot涓嶲uery寮傚父璺緞閲嶅dispose銆?
+    // 同一个ElementHandle只能由一个逻辑所有者保留；用Set去重后统一释放，避免Snapshot与Query异常路径重复dispose。
     await releaseHandles(handles)
   }
 
   protected async releaseViewRefs(view: ViewState): Promise<void> {
-    // 蹇呴』鍏堝悓姝ユ竻绌篗ap锛屼娇鏃ef绔嬪嵆鍙樹负STALE_REF锛涢殢鍚庡啀绛夊緟鍗忚鍙ユ焺閲婃斁锛岄伩鍏嶆竻鐞嗘湡闂存棫寮曠敤浠嶅彲琚苟鍙戞搷浣滃懡涓€?
+    // 必须先同步清空Map，使旧Ref立即变为STALE_REF；随后再等待协议句柄释放，避免清理期间旧引用仍可被并发操作命中。
     await releaseViewRefs(view)
   }
 
   protected splitViewState(preference: { ratio: number; orientation: 'top-bottom' | 'left-right' } = { ratio: 0.5, orientation: 'top-bottom' }): SessionState['splitView'] {
-    // activeViewId 浠嶆槸鐜版湁宸ュ叿鐨勯粯璁ゆ搷浣滅洰鏍囷紱top/bottom 淇濈暀涓哄吋瀹圭獥鏍艰韩浠斤紝orientation 鍙喅瀹氳瑙夋帓鍒楁柟寮忋€?
+    // activeViewId 仍是现有工具的默认操作目标；top/bottom 保留为兼容窗格身份，orientation 只决定视觉排列方式。
     return splitViewState(preference)
   }
 
@@ -109,8 +109,8 @@ export abstract class BrowserRuntimeFoundation {
     args: string[]
     proxy?: { server: string; bypass?: string; username?: string; password?: string }
   } {
-    // system 妯″紡涓嶄紶 Playwright proxy锛岃 Chromium 浣跨敤鎿嶄綔绯荤粺浠ｇ悊锛沝irect 鍙坊鍔犲畼鏂圭洿杩炲弬鏁帮紱
-    // custom 閫氳繃 Playwright 鍘熺敓浠ｇ悊瀵硅薄浼犻€掞紝瀵嗙爜涓嶄細杩涘叆鍛戒护琛屻€佹棩蹇楁垨椤甸潰鍙 URL銆?
+    // system 模式不传 Playwright proxy，让 Chromium 使用操作系统代理；direct 只添加官方直连参数；
+    // custom 通过 Playwright 原生代理对象传递，密码不会进入命令行、日志或页面可见 URL。
     return browserLaunchNetwork(this.config)
   }
 
@@ -220,7 +220,7 @@ export abstract class BrowserRuntimeFoundation {
       ],
     })
     await this.installSurfaceProbe(context)
-    // 鍙湁鏂?Context 宸茬粡鎴愬姛鍔犺浇鐩爣鎵╁睍鍚庯紝鎵嶈兘鍒犻櫎涓嶅啀鐧昏鎴栦笉鍐嶈繍琛岀殑鏃х増鏈洰褰曪紝纭繚鍚姩澶辫触浠嶅彲浣跨敤鏃х増鏈洖婊氥€?
+    // 只有新Context 已经成功加载目标扩展后，才能删除不再登记或不再运行的旧版本目录，确保启动失败仍可使用旧版本回滚。
     await this.profiles.pruneExtensionDirectories(sessionId, [...extensions, ...enabled])
     return { context, extensionRegistry: extensions, loadedExtensions: enabled, loadedExtensionIds: new Set(enabled.map(extension => extension.extensionId)) }
   }
@@ -309,13 +309,13 @@ export abstract class BrowserRuntimeFoundation {
     }
     session.views.clear()
     if (session.providerBinding.kind === 'shared-persistent') {
-      // Session鍙嫢鏈夊叡浜獵ontext涓殑Page锛涢€€鍑哄叡浜玃rovider鎴栭攢姣丼ession鏃堕€愰〉鍏抽棴锛屼笉鑳藉叧闂彃浠剁骇Context銆?
+      // Session只拥有共享Context中的Page；退出共享Provider或销毁Session时逐页关闭，不能关闭插件级Context。
       for (const view of views) {
         this.state.sharedPersistent.pageOwners.delete(view.page)
         await view.page.close({ runBeforeUnload: false }).catch(() => {})
       }
     } else if (session.providerBinding.kind === 'external-cdp') {
-      // connectOverCDP 鐨?Browser.close 浠呭叧闂?Playwright 浼犺緭杩炴帴锛屼笉鍙戦€?Browser.close锛屽洜姝や笉浼氶€€鍑虹敤鎴锋祻瑙堝櫒銆?
+      // connectOverCDP 的Browser.close 仅关闭Playwright 传输连接，不发送Browser.close，因此不会退出用户浏览器。
       await session.providerBinding.browser.close().catch(() => {})
     } else if (session.providerBinding.kind !== 'disconnected') {
       await session.providerBinding.context.close().catch(() => {})
@@ -341,7 +341,7 @@ export abstract class BrowserRuntimeFoundation {
     const view = this.bindView(session, page, kind)
     if (kind === 'page') {
       if (session.splitView.enabled) {
-        // 缃戦〉寮瑰嚭鏍囩蹇呴』杩涘叆褰撳墠鐒︾偣绐楁牸锛涘惁鍒欏垎灞忕姸鎬佷粛鎸囧悜鏃ф爣绛撅紝鍦板潃鏍忎笌 Agent 榛樿鐩爣浼氬拰鐢ㄦ埛鐪嬪埌鐨勯〉闈笉涓€鑷淬€?
+        // 网页弹出标签必须进入当前焦点窗格；否则分屏状态仍指向旧标签，地址栏与 Agent 默认目标会和用户看到的页面不一致。
         if (session.splitView.focusedPane === 'top') session.splitView.topViewId = view.viewId
         else session.splitView.bottomViewId = view.viewId
       }
@@ -414,7 +414,7 @@ export abstract class BrowserRuntimeFoundation {
   protected syncSharedExtensions(): void {
     const shared = this.state.sharedPersistent
     for (const session of this.sharedSessions()) {
-      // Session瀛楁鍙繚鐣欏吋瀹瑰揩鐓э紝绂佹鍏变韩Set寮曠敤锛汸rovider鍒囨崲鏃舵竻鐞哠ession涓嶈兘淇敼鎻掍欢绾у姞杞介泦鍚堛€?
+      // Session字段只保留兼容快照，禁止共享Set引用；Provider切换时清理Session不能修改插件级加载集合。
       session.extensionRegistry = [...shared.extensionRegistry]
       session.loadedExtensions = [...shared.loadedExtensions]
       session.loadedExtensionIds = new Set(shared.loadedExtensionIds)
@@ -528,7 +528,7 @@ export abstract class BrowserRuntimeFoundation {
       pending.key = key
       this.state.sessions.set(key, pending)
       if (pending.providerBinding.kind === 'shared-persistent') {
-        // 鑽夌鎺ョ涓嶉噸寤篜age锛涘彧鎶婂叡浜玂wner閿粠@pending鍘熷瓙鏀逛负姝ｅ紡Session閿紝鐜版湁View銆佺櫥褰曟€佸拰瀹炲喌缁х画淇濈暀銆?
+        // 草稿接管不重建Page；只把共享Owner键从@pending原子改为正式Session键，现有View、登录态和实况继续保留。
         for (const [page, owner] of this.state.sharedPersistent.pageOwners) {
           if (owner.sessionKey === pendingKey) this.state.sharedPersistent.pageOwners.set(page, { ...owner, sessionKey: key })
         }

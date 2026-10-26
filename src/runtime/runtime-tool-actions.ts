@@ -29,7 +29,7 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
       }
       if (action === 'new') {
         const previousActiveViewId = session.activeViewId
-        // 蹇呴』鍦ㄥ垱寤?Playwright Page 鍓嶅畬鎴愮瓥鐣ユ牎楠岋紝閬垮厤琚嫆缁濈殑 URL 浜х敓涓嶅彲瑙佺殑绌虹櫧椤电鍜?View 鐘舵€併€?
+        // 必须在创建Playwright Page 前完成策略校验，避免被拒绝的 URL 产生不可见的空白页签和View 状态。
         const rawUrl = input.url?.trim()
         const url = rawUrl === undefined || rawUrl === '' || rawUrl === 'about:blank' ? undefined : assertUrlAllowed(this.config, rawUrl)
         const page = await this.createPage(session)
@@ -46,7 +46,7 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
             await this.applyLiveViewport(session, view)
           }
         } catch (error) {
-          // Page 鍒涘缓鍚庣殑瀵艰埅銆佸彇娑堟垨鏈€缁?URL 鏍￠獙澶辫触蹇呴』鏁翠綋鍥炴粴锛屽苟鎭㈠璋冪敤鍓嶇殑娲诲姩椤电锛屼繚璇?new 鎿嶄綔鍏峰鍘熷瓙鎬с€?
+          // Page 创建后的导航、取消或最终URL 校验失败必须整体回滚，并恢复调用前的活动页签，保证new 操作具备原子性。
           await page.close({ runBeforeUnload: false }).catch(() => {})
           const previous = session.views.get(previousActiveViewId)
           const active = previous !== undefined && previous.kind === 'page' && !previous.page.isClosed() ? previous : [...session.views.values()].find(candidate => candidate.kind === 'page' && !candidate.page.isClosed())
@@ -129,7 +129,7 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
       const view = this.view(session, input.viewId)
       const maxNodes = Math.min(Math.max(input.maxNodes ?? 80, 1), 300)
       await this.releaseViewRefs(view)
-      // 鏈疆elementHandles鍏堢敱灞€閮ㄤ綔鐢ㄥ煙鎸佹湁锛屽彧鏈夋垚鍔熺敓鎴愬叕寮€Ref鐨勫彞鏌勬墠鍦ㄦ彁浜ょ偣杞Щ缁橵iew锛涘叾浣欏彞鏌勫繀椤诲湪finally閲婃斁銆?
+      // 本轮elementHandles先由局部作用域持有，只有成功生成公开Ref的句柄才在提交点转移给View；其余句柄必须在finally释放。
       const handles = await view.page.locator('a,button,input,textarea,select,[role],[contenteditable="true"],[onclick],[tabindex]:not([tabindex="-1"]),div[class*="btn"],div[class*="button"],span[class*="btn"],span[class*="button"]').elementHandles()
       const nextRefs = new Map<string, RefState>()
       const retainedHandles = new Set<ElementHandle>()
@@ -188,7 +188,7 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
       const useIncremental = incrementalRequested
         && view.lastSnapshot !== undefined
         && incrementalBytes < fullSnapshot.length
-      // 澧為噺妯″紡濮嬬粓杩斿洖鏈疆鏈€鏂皉efs锛汚RIA鏃犲彉鍖栨椂涓嶉噸澶嶅叏鏂囷紝鏈夊彉鍖栨椂浣跨敤鏈夌晫diff銆傚閲忎笉鍒掔畻鏃惰嚜鍔ㄥ洖閫€鍏ㄦ枃锛岄伩鍏嶄负浜嗙渷瀛楃涓㈠け椤甸潰璇箟銆?
+      // 增量模式始终返回本轮最新refs；ARIA无变化时不重复全文，有变化时使用有界diff。增量不划算时自动回退全文，避免为了省字符丢失页面语义。
       const snapshot = useIncremental ? incrementalSnapshot : fullSnapshot
       const snapshotMode = useIncremental ? 'incremental' : 'full'
       const unchanged = view.lastSnapshot !== undefined && view.lastSnapshot === aria
@@ -212,7 +212,7 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
       const paused = this.paused(view, input.action)
       if (paused !== undefined) return paused
       const timeout = input.timeoutMs ?? 10000
-      // 閮ㄥ垎妯″瀷浼氱敤绌哄瓧绗︿覆鍗犱綅鍙€夊瓧娈碉紱鎵ц杈圭晫缁熶竴鎶樺彔涓虹┖缂猴紝閬垮厤椤甸潰绾ф寜閿璇垽涓鸿繃鏈熷厓绱犲紩鐢ㄣ€?
+      // 部分模型会用空字符串占位可选字段；执行边界统一折叠为空缺，避免页面级按键被误判为过期元素引用。
       const normalizedRef = input.ref?.trim() || undefined
       let resultData: Record<string, unknown> = {}
       try {
@@ -273,7 +273,7 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
   async waitFor(identity: Identity, signal: AbortSignal, input: { viewId?: string; text?: string; textGone?: string; state?: string; time?: number; timeMs?: number; timeoutMs?: number }): Promise<ToolOutput> {
     return this.withSession(identity, signal, async session => {
       const view = this.view(session, input.viewId)
-      // Schema骞抽摵鐨勫彲閫夊瓧娈靛父琚ā鍨嬩互绌哄瓧绗︿覆鎴栭浂鍊艰ˉ榻愶紱鍙湁闈炵┖鏂囨湰鍜屾鏁版椂闂存墠鏋勬垚瀹為檯鏉′欢銆?
+      // Schema平铺的可选字段常被模型以空字符串或零值补齐；只有非空文本和正数时间才构成实际条件。
       const text = input.text?.trim() || undefined
       const textGone = input.textGone?.trim() || undefined
       const time = input.time !== undefined && input.time > 0 ? input.time : undefined
@@ -336,7 +336,7 @@ export class BrowserRuntimeToolActions extends BrowserRuntimeCore {
       const count = await locator.count()
       if (input.field === 'count') return { ok: true, action: 'query', viewId: view.viewId, data: asData({ count }) }
       if (input.field === 'refs') {
-        // refs鏌ヨ浼氬缓绔嬩竴缁勬柊鐨勭煭鏈熷紩鐢ㄥ苟浣挎棫蹇収寮曠敤澶辨晥锛涙湭鍏紑鎴栬秴杩噇imit鐨凟lementHandle涔熷繀椤荤敱鏈疆閲婃斁銆?
+        // refs查询会建立一组新的短期引用并使旧快照引用失效；未公开或超过limit的ElementHandle也必须由本轮释放。
         await this.releaseViewRefs(view)
         const handles = await locator.elementHandles()
         const retainedHandles = new Set<ElementHandle>()

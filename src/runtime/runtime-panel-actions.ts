@@ -61,7 +61,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
       const inputTraceId = input.inputTraceId?.trim() || `host-legacy-${this.nextLegacyInputTrace++}`
       const clientRawObserved = typeof input.clientRawAt === 'number' && Number.isFinite(input.clientRawAt)
       const clientNormalizedObserved = typeof input.clientNormalizedAt === 'number' && Number.isFinite(input.clientNormalizedAt)
-      // Client鏃堕棿鍙敤浜庢爣璁拌緭鍏ョ绾块樁娈碉紝涓嶅緱瓒婅繃Host瀹為檯鎺ユ敹鏃跺埢锛汵ormalized涔熶笉鑳芥棭浜嶳aw锛屽惁鍒欒法绾跨▼鎺掗槦鎴栧紓甯歌皟鐢ㄤ細鐢熸垚閫嗗簭璇佹嵁銆?
+      // Client时间只用于标记输入管线阶段，不得越过Host实际接收时刻；Normalized也不能早于Raw，否则跨线程排队或异常调用会生成逆序证据。
       const clientRawAt = clientRawObserved ? Math.min(input.clientRawAt as number, startedAt) : startedAt
       const clientNormalizedAt = clientNormalizedObserved ? Math.min(Math.max(input.clientNormalizedAt as number, clientRawAt), startedAt) : startedAt
       const beforeView = session.views.get(input.viewId)
@@ -136,8 +136,8 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
         }
       }
       if ((input.action === 'composition_commit' || input.action === 'insert_text') && finalObservation !== undefined) {
-        // 闈㈡澘杈撳叆澶勪簬鐢ㄦ埛鐙崰鏈燂紝涓嶈兘鍐嶈皟鐢ㄦā鍨?Evaluate 璇诲彇椤甸潰銆傝繖閲岃繑鍥炵殑瑙傚療鎽樿鍙寘鍚?
-        // 浜嬩欢绫诲埆銆佸竷灏旂姸鎬佷笌闀垮害锛岀敤浜庨獙璇佺湡瀹?Composition 鍙婄粍鍚堝悗鏅€氳緭鍏ラ摼锛涚粷涓嶅寘鍚鏂囥€?
+        // 面板输入处于用户独占期，不能再调用模型Evaluate 读取页面。这里返回的观察摘要只包含
+        // 事件类别、布尔状态与长度，用于验证真实Composition 及组合后普通输入链；绝不包含正文。
         result = {
           ...result,
           data: asData({
@@ -269,10 +269,10 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
     }
     if (session === undefined && input.action === 'new') {
       if (sessionCreatedAt !== undefined) {
-        // 姝ｅ紡 Session 宸插瓨鍦ㄦ椂鐩存帴鍒涘缓鏈€缁堥殧绂婚敭锛涘悗缁ā鍨嬪伐鍏蜂細鍛戒腑鍚屼竴涓?BrowserContext銆?
+        // 正式 Session 已存在时直接创建最终隔离键；后续模型工具会命中同一个BrowserContext。
         session = await this.createSession({ sessionId, sessionCreatedAt, callId: 'panel-new', rootCallId: 'panel-new' })
       } else {
-        // DSH 鑽夌灏氭湭杩涘叆 Host Session Store 鏃朵娇鐢?sessionId@pending锛涙寮?Session 鍑虹幇鍚庣敱 adoptPendingSession 鍘熷瓙鎺ョ銆?
+        // DSH 草稿尚未进入 Host Session Store 时使用sessionId@pending；正式Session 出现后由 adoptPendingSession 原子接管。
         session = await this.queueSharedContext(async () => {
           const pendingKey = pendingSessionKey(sessionId)
           const existingPending = this.state.sessions.get(pendingKey)
@@ -326,7 +326,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
 
       if (input.action === 'new') {
         if (createdFromPanel) {
-          // createSession 鐨?bindContext 宸插垱寤洪涓?about:blank锛涢娆￠潰鏉挎柊寤虹洿鎺ュ鐢紝閬垮厤涓€娆＄偣鍑讳骇鐢熶袱涓爣绛俱€?
+          // createSession 的bindContext 已创建首个about:blank；首次面板新建直接复用，避免一次点击产生两个标签。
           const view = session.views.get(session.activeViewId)
           if (view === undefined) fail('PROVIDER_UNAVAILABLE', 'browser session has no available tab')
           return { ok: true, action: 'panel_tabs', viewId: view.viewId, data: asData({ action: input.action, changed: true, title: '', url: view.page.url() }) }
@@ -351,7 +351,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
         const next = wasActive ? ordered[closingIndex + 1] ?? ordered[closingIndex - 1] : session.views.get(session.activeViewId)
         await view.page.close({ runBeforeUnload: false })
         if (next === undefined || next.page.isClosed()) {
-          // 鐢ㄦ埛鏄庣‘閫夋嫨鍏佽鍏抽棴鏈€鍚庝竴涓爣绛撅紱闈㈡澘璺緞涓嶅緱澶嶇敤妯″瀷宸ュ叿鑷姩琛ョ┖鐧介〉鐨勫吋瀹硅涔夈€?
+          // 用户明确选择允许关闭最后一个标签；面板路径不得复用模型工具自动补空白页的兼容语义。
           session.activeViewId = ''
           return { ok: true, action: 'panel_tabs', data: asData({ action: input.action, changed: wasActive, empty: ![...session.views.values()].some(item => item.kind === 'page') }) }
         }
@@ -366,7 +366,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
       else if (input.action === 'navigate') {
         const raw = input.url?.trim()
         if (raw === undefined || raw === '') fail('INVALID_ARGS', 'address bar requires a non-empty URL')
-        // 鍦板潃鏍忓彧鎵挎媴缃戝潃瀵艰埅锛涚己灏戝崗璁椂琛?https://锛屼笉鎶婃櫘閫氭枃鏈殣寮忓彂閫佺粰绗笁鏂规悳绱㈠紩鎿庛€?
+        // 地址栏只承担网址导航；缺少协议时补https://，不把普通文本隐式发送给第三方搜索引擎。
         const candidate = /^[a-z][a-z\d+.-]*:/i.test(raw) ? raw : `https://${raw}`
         const url = assertUrlAllowed(this.config, candidate)
         await view.page.goto(url.href, { waitUntil: 'domcontentloaded', timeout: 30000 })
@@ -402,7 +402,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
     if (view === 'live') session.liveView.open = true
     await this.syncScreencasts(session)
     if (view === 'diagnostic' && diagnosticReadSequence !== undefined && Number.isInteger(diagnosticReadSequence) && diagnosticReadSequence >= 0) {
-      // 鏈鐘舵€佸睘浜庣敤鎴锋槸鍚︽煡鐪嬭繃璇婃柇宸ヤ綔鍙帮紝涓嶅睘浜嶫ournal鏈韩銆傚彧鏈夎瘖鏂鍥炬樉寮忓洖浼犲凡鏄剧ず搴忓垪鏃舵墠鎺ㄨ繘褰撳墠View娓告爣锛汱ive銆丆onsole鍜孨etwork鐨勫悗鍙拌疆璇㈤兘涓嶈兘鑷姩鍚炴帀鏈寮傚父锛屾帹杩涙父鏍囦篃缁濅笉鍒犻櫎搴曞眰璇佹嵁銆?
+      // 未读状态属于用户是否查看过诊断工作台，不属于Journal本身。只有诊断视图显式回传已显示序列时才推进当前View游标；Live、Console和Network的后台轮询都不能自动吞掉未读异常，推进游标也绝不删除底层证据。
       const previous = session.diagnosticPanel.readSequences.get(current.viewId) ?? 0
       session.diagnosticPanel.readSequences.set(current.viewId, Math.max(previous, diagnosticReadSequence))
     }
@@ -449,7 +449,7 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
       })
     }
     const frame = current.cdp?.latestFrame
-    // 鎵╁睍 Popup 灞炰簬鏁翠釜鍙充晶娴忚鍣ㄩ潰鏉匡紝鑰屼笉鏄墿灞曠鐞嗗瓙瑙嗗浘锛涙墍鏈夎鍥鹃兘杩斿洖鍏剁姸鎬佸拰澧為噺甯э紝鍒囧洖瀹炲喌鏃剁户缁樉绀哄拰鎿嶄綔銆?
+    // 扩展 Popup 属于整个右侧浏览器面板，而不是扩展管理子视图；所有视图都返回其状态和增量帧，切回实况时继续显示和操作。
     const popup = session.extensionPopup
     if (popup !== undefined) await this.ensureScreencast(session, popup.view, 'live-view')
     const popupFrame = popup?.view.cdp?.latestFrame
@@ -539,8 +539,8 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
     const session = this.sessionById(sessionId)
     if (session === undefined) return
     await this.queueSession(session, async () => {
-      // 鎺у埗鍣ㄩ€€鍑哄繀椤诲厛鏀舵暃浼氶樆濉為〉闈㈡垨鎸佺画閲囬泦鏁版嵁鐨勮兘鍔涳紝鍐嶆挙閿€宸ュ叿闈€?
-      // 杩欓噷淇濈暀 Page 涓?BrowserContext锛屽彧浣挎湰鎻掍欢鐨勮皟璇曘€侀噰闆嗗拰寮曠敤韬唤鍏ㄩ儴澶辨晥銆?
+      // 控制器退出必须先收敛会阻塞页面或持续采集数据的能力，再撤销工具面。
+      // 这里保留 Page 与BrowserContext，只使本插件的调试、采集和引用身份全部失效。
       for (const view of session.views.values()) {
         const cdp = view.cdp
         if (cdp === undefined) {
@@ -594,8 +594,8 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
       session.control.changedAt = Date.now()
       session.liveView.open = false
 
-      // Controller generation 鏀瑰彉鍚庯紝鏃?Checkpoint銆丅uild銆丄pplication 涓?Context Identity
-      // 閮戒笉鑳界户缁弬涓?Compare锛汚rtifact 浠嶆寜 Session 瑙勫垯淇濈暀锛屼絾涓嶅啀浠ｈ〃褰撳墠鎺у埗鍣ㄧ姸鎬併€?
+      // Controller generation 改变后，旧Checkpoint、Build、Application 与Context Identity
+      // 都不能继续参与Compare；Artifact 仍按 Session 规则保留，但不再代表当前控制器状态。
       this.debugSessions.invalidate(session.key)
       this.contextIdentities.invalidateSession(session.key, session.contextGeneration + 1)
       this.builds.clearSession(session.key)
