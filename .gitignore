@@ -6,6 +6,9 @@ node_modules/
 lib/
 *.tsbuildinfo
 
+# Release artifacts (npm pack output, beta handouts)
+dist/
+
 # Local tooling artifacts (sandbox workspaces, package caches)
 .sandbox/
 .npm-cache/

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { createWriteStream, existsSync } from 'node:fs'
-import { mkdir, readFile, readdir, rename, rm, stat } from 'node:fs/promises'
+import { chmod, mkdir, readFile, readdir, rename, rm, stat } from 'node:fs/promises'
 import { createRequire } from 'node:module'
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path'
 import { pipeline } from 'node:stream/promises'
@@ -15,6 +15,9 @@ const MAX_ENTRIES = 20000
 const MAX_REDIRECTS = 5
 const KNOWN_ARCHIVES = new Map([
   ['149.0.7827.55/win64', { bytes: 192511857, md5: '9e81f0a217403ab3d8f2db6c42fd86c1' }],
+  ['149.0.7827.55/mac-arm64', { bytes: 179277110, md5: '6ee24106b1885f68ab79e10b195ba690' }],
+  ['149.0.7827.55/mac-x64', { bytes: 189658978, md5: '1960c48c813f7d7fd2457e2e0e069c7d' }],
+  ['149.0.7827.55/linux64', { bytes: 185646494, md5: 'ee47ffe3753fcf9dd0728d1f427e2a04' }],
 ])
 
 export interface ChromiumDescriptor {
@@ -45,21 +48,52 @@ interface PlaywrightBrowsersManifest {
   browsers?: Array<{ name?: string; revision?: string; browserVersion?: string }>
 }
 
+export function resolvePlatformArchive(platform = process.platform, arch = process.arch): { platform: string; archiveName: string; executableRelativePath: string } {
+  if (platform === 'win32' && arch === 'x64') {
+    return {
+      platform: 'win64',
+      archiveName: 'chrome-win64.zip',
+      executableRelativePath: join('chrome-win64', 'chrome.exe'),
+    }
+  }
+  if (platform === 'darwin' && arch === 'arm64') {
+    return {
+      platform: 'mac-arm64',
+      archiveName: 'chrome-mac-arm64.zip',
+      executableRelativePath: join('chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
+    }
+  }
+  if (platform === 'darwin' && arch === 'x64') {
+    return {
+      platform: 'mac-x64',
+      archiveName: 'chrome-mac-x64.zip',
+      executableRelativePath: join('chrome-mac-x64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
+    }
+  }
+  if (platform === 'linux' && arch === 'x64') {
+    return {
+      platform: 'linux64',
+      archiveName: 'chrome-linux64.zip',
+      executableRelativePath: join('chrome-linux64', 'chrome'),
+    }
+  }
+  throw new Error(`managed Chromium installation is not supported on ${platform}/${arch}`)
+}
+
 async function descriptor(): Promise<ChromiumDescriptor> {
-  if (process.platform !== 'win32' || process.arch !== 'x64') throw new Error(`managed Chromium installation is not supported on ${process.platform}/${process.arch}`)
+  const target = resolvePlatformArchive()
   const packagePath = require.resolve('playwright-core/package.json')
   const manifest = JSON.parse(await readFile(join(dirname(packagePath), 'browsers.json'), 'utf8')) as PlaywrightBrowsersManifest
   const chromium = manifest.browsers?.find(item => item.name === 'chromium')
   if (chromium?.revision === undefined || chromium.browserVersion === undefined) throw new Error('playwright-core Chromium metadata is unavailable')
-  const platform = 'win64'
-  const integrity = KNOWN_ARCHIVES.get(`${chromium.browserVersion}/${platform}`)
+  const integrity = KNOWN_ARCHIVES.get(`${chromium.browserVersion}/${target.platform}`)
   if (integrity === undefined) throw new Error(`Chromium ${chromium.browserVersion} does not have verified archive metadata`)
   return {
     revision: chromium.revision,
     browserVersion: chromium.browserVersion,
-    platform,
-    archiveName: 'chrome-win64.zip',
-    executableRelativePath: join('chrome-win64', 'chrome.exe'),
+    platform: target.platform,
+    archiveName: target.archiveName,
+    executableRelativePath: target.executableRelativePath,
     directoryName: `chromium-${chromium.revision}`,
     archiveBytes: integrity.bytes,
     archiveMd5: integrity.md5,
@@ -91,6 +125,11 @@ async function findExecutable(root: string, directoryName?: string): Promise<str
     const candidates = [
       join(root, directory.name, 'chrome-win64', 'chrome.exe'),
       join(root, directory.name, 'chrome-win', 'chrome.exe'),
+      join(root, directory.name, 'chrome-mac-arm64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
+      join(root, directory.name, 'chrome-mac-x64', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
+      join(root, directory.name, 'chrome-mac', 'Google Chrome for Testing.app', 'Contents', 'MacOS', 'Google Chrome for Testing'),
+      join(root, directory.name, 'chrome-linux64', 'chrome'),
+      join(root, directory.name, 'chrome-linux', 'chrome'),
     ]
     const executable = candidates.find(existsSync)
     if (executable !== undefined) return executable
@@ -197,6 +236,9 @@ async function extractArchive(archive: string, target: string, value: ChromiumDe
     await zip.close()
   }
   const executable = join(target, value.executableRelativePath)
+  if (process.platform !== 'win32') {
+    await chmod(executable, 0o755).catch(() => {})
+  }
   const info = await stat(executable).catch(() => undefined)
   if (info?.isFile() !== true || info.size === 0) throw new Error('Chromium archive does not contain a usable executable')
 }

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { defaultAttempts } from '../../src/provider/chromium-manager.ts'
+import { defaultAttempts, resolvePlatformArchive } from '../../src/provider/chromium-manager.ts'
 
 const descriptor = {
   revision: '1248',
@@ -37,4 +37,25 @@ test('auto tries the mirror before the official build', () => {
     assert.ok(attempt.allowedHosts.includes(new URL(attempt.url).hostname))
   }
   assert.equal(new Set(attempts.map(attempt => attempt.source)).size, attempts.length)
+})
+
+test('resolvePlatformArchive resolves win64, mac and linux targets', () => {
+  const win = resolvePlatformArchive('win32', 'x64')
+  assert.equal(win.platform, 'win64')
+  assert.equal(win.archiveName, 'chrome-win64.zip')
+
+  const macArm = resolvePlatformArchive('darwin', 'arm64')
+  assert.equal(macArm.platform, 'mac-arm64')
+  assert.equal(macArm.archiveName, 'chrome-mac-arm64.zip')
+
+  const macX64 = resolvePlatformArchive('darwin', 'x64')
+  assert.equal(macX64.platform, 'mac-x64')
+  assert.equal(macX64.archiveName, 'chrome-mac-x64.zip')
+
+  const linux = resolvePlatformArchive('linux', 'x64')
+  assert.equal(linux.platform, 'linux64')
+  assert.equal(linux.archiveName, 'chrome-linux64.zip')
+
+  assert.throws(() => resolvePlatformArchive('darwin', 'ia32'), /managed Chromium installation is not supported/)
+  assert.throws(() => resolvePlatformArchive('freebsd', 'x64'), /managed Chromium installation is not supported/)
 })
