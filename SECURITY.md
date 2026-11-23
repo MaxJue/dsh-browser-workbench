@@ -4,7 +4,7 @@
 
 ## 支持范围
 
-本文件适用于 `1.0.0-rc8`；实际公开版本请以 npm Registry 与 GitHub Release 的记录为准。
+本文件适用于 `1.0.0-rc9`；实际公开版本请以 npm Registry 与 GitHub Release 的记录为准。
 
 这是 Release Candidate，不承诺稳定版兼容周期。安全修复优先进入最新候选版本或后续正式版本。
 

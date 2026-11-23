@@ -7,7 +7,7 @@ import { gunzipSync } from 'node:zlib'
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const packageName = 'dsh-browser-workbench'
-const expectedVersion = '1.0.0-rc8'
+const expectedVersion = '1.0.0-rc9'
 const expectedFiles = [
   'LICENSE',
   'PUBLISHING.md',

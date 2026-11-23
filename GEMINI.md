@@ -32,7 +32,7 @@ This repository enforces strict domain-driven modularity, strict file-size limit
    - Use `useId` for accessible labels and inputs.
 
 7. **DSH Compatibility**:
-   - Declare `@deepseek-ai/dsh-*` peer dependencies using flexible ranges (`"^0.2.1-rc.2 || ^0.2.1-rc.3"`).
+   - Declare `@deepseek-ai/dsh-*` peer dependencies using flexible ranges (e.g. `"^0.2.2-rc.5"` for the current host generation).
    - Manage packages with `pnpm` and commit `pnpm-lock.yaml`.
 
 8. **Mandatory Quality Gates**:

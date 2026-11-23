@@ -4,7 +4,7 @@
 
 ## Supported Versions
 
-This document applies to `1.0.0-rc8`; check the npm Registry and GitHub Releases for the actual public version.
+This document applies to `1.0.0-rc9`; check the npm Registry and GitHub Releases for the actual public version.
 
 This is a Release Candidate and does not follow a stable-release compatibility cycle. Security fixes will be prioritized for the latest release candidate or a later stable release.
 

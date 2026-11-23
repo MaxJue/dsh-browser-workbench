@@ -2,7 +2,7 @@
 
 [English Version](./TECHNICAL.en.md) | 简体中文
 
-版本 `1.0.0-rc8` 面向 DSH `0.2.1-rc.2` / `0.2.1-rc.3`（peer 范围 `^0.2.1-rc.2 || ^0.2.1-rc.3`），使用 Cordis `~4.0.5` 和 Schemastery `~3.18.5`。
+版本 `1.0.0-rc9` 面向 DSH `0.2.2-rc.5`（peer 范围 `^0.2.2-rc.5`），使用 Cordis `~4.1.0` 和 Schemastery `~3.19.0`。
 
 本文说明 BrowserWorkbench 的配置项、工具注册模式、浏览器状态模型、安全边界、内部标识、29 个 Agent 工具、实况面板与设置页绑定规范。安装和功能概览见 [README](./README.md)，测试依据见 [测试报告](./VALIDATION.md)。
 

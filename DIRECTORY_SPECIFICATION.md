@@ -134,7 +134,7 @@ dsh-browser-workbench/
 ## 6. 宿主兼容与版本依赖管理（DSH Alignment）
 
 1. **宿主 PeerDependencies 声明**：
-   - 对 `@deepseek-ai/dsh-*` 的 peer 依赖必须保持灵活版本范围（如 `"^0.2.1-rc.2 || ^0.2.1-rc.3"`），禁止死板锁定单一 prerelease 版本，保证在新版 DeepSeek Harness 宿主下无冲突热载。
+   - 对 `@deepseek-ai/dsh-*` 的 peer 依赖必须保持灵活版本范围（如当前宿主代的 `"^0.2.2-rc.5"`），禁止死板锁定单一 prerelease 版本，保证在新版 DeepSeek Harness 宿主下无冲突热载。
    - 对 `react` 的 peer 依赖统一声明为 `"^18.2.0 || ^19.0.0"`。
 2. **包管理器标准**：
    - 项目唯一官方包管理器为 `pnpm`。依赖新增或版本锁定变更统一由 `pnpm install` 更新 `pnpm-lock.yaml`。

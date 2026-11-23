@@ -6,7 +6,7 @@ This document records the objectives, procedures, and empirical results of valid
 
 > October 2026 update: the default registration mode is now `global`, and `providerMode: auto` launches a dedicated persistent Chromium per session on the first browser tool call. Notes below such as "managed launch is not exposed on the tool surface", "the provider only accepts `external-cdp`", and "no background browser spawning" describe the code state at the time of that run and no longer apply.
 
-> 2026-10-26 update: the client panel is now a single live view, human takeover has been removed in favor of pure screencast observation, composer binding controls are gone, and settings-page three-way binding was added; tools stand at 29 and unit tests stand at 171. Conclusions in sections 2, 7, and 8 that depend on the nine views, the controller menu, or composer controls are superseded and annotated in section 9.
+> 2026-10-26 update: the client panel is now a single live view, human takeover has been removed in favor of pure screencast observation, composer binding controls are gone, and settings-page three-way binding was added; tools stand at 29 and unit tests stand at 173. Conclusions in sections 2, 7, and 8 that depend on the nine views, the controller menu, or composer controls are superseded and annotated in section 9.
 
 Release candidate states are formally anchored by external candidate identity descriptors and tarball digests.
 
@@ -14,19 +14,19 @@ Release candidate states are formally anchored by external candidate identity de
 
 ```text
 package: dsh-browser-workbench
-version: 1.0.0-rc8
-DSH compatibility target: 0.2.1-rc.2 / 0.2.1-rc.3
-0.2.1-rc.2 validation: peer dependency check, strict typecheck, production build, Session Controller integration, 30-tool Chromium regression
-full browser runtime validation: 30-tool regression passed; fresh DSH Web Profile lifecycle and UI acceptance pending
-Node.js: 22.x
+version: 1.0.0-rc9
+DSH compatibility target: 0.2.2-rc.5
+0.2.2-rc.5 validation: strict typecheck, 173 unit tests, production build, 29-tool Chromium regression (140/140 checks), isolated DSH Web profile boot
+full browser runtime validation: 29-tool regression passed; fresh DSH Web Profile lifecycle and UI acceptance pending
+Node.js: 24.x
 package manager: pnpm 11.x
 ```
 
-RC8 declares its direct DSH peers as the range `^0.2.1-rc.2 || ^0.2.1-rc.3`, Cordis to `~4.0.5`, and Schemastery to `~3.18.5`. The previous `0.1.x` compatibility range is no longer declared.
+RC9 declares its direct DSH peers as `^0.2.2-rc.5`, Cordis as `~4.1.0`, Schemastery as `~3.19.0`, and adds `@deepseek-ai/dsh-error` as an explicit type dependency. The old `0.1.x` and `0.2.1.x` compatibility ranges are no longer declared.
 
-DSH `0.2.1-rc.2` updates the Connection Peer model and transitive peer graph. BrowserWorkbench continues to register its authenticated exact Fetch route, leaving authentication, Host/Origin checks, request limits, and cancellation to Connection. `dsh-tools` now requires `dsh-working-directory`, which brings the `dsh-fs` peer; both are installed in the validation graph. The removed `dsh-invariants` dependency is no longer installed.
+DSH `0.2.2-rc.5` moves the `HarnessError` base class into the standalone `@deepseek-ai/dsh-error` package and raises Cordis to `~4.1.0` and Schemastery to `~3.19.0`. BrowserWorkbench still exposes `/api/browser-tools` through Connection's authenticated exact Fetch route, leaving authentication, Host/Origin checks, request limits, and cancellation to Connection; the `insert` dialect of `cordis.patch.yml` is unchanged under loader 1.1.0 and the composed tree still produces the `browser-tools` entry.
 
-Against DSH `0.2.1-rc.2`, strict typecheck, production Host/Client build, `pnpm peers check`, build-registry checks, real App Boot Session Controller integration, and the full 30-tool integration against pinned Chromium `149.0.7827.55` pass. Coverage includes the panel, split view, persistent profiles, extensions, debugger, diagnostic evidence, network, performance artifacts, external CDP, and cleanup paths. All assertions passed; the temporary runtime, listener port, and external CDP process were cleaned up. Fresh DSH Web Profile install/start/auth/uninstall and DSH Web UI validation remain pending. Prior `0.1.x` validation does not establish compatibility with `0.2.x` and is not carried forward.
+Against DSH `0.2.2-rc.5`, strict typecheck, production Host/Client build, 173 unit tests, and the full 29-tool integration against the local Chrome `158.0.8127.37` (140 assertions) pass. An isolated `DSH_HOME` was used to boot a real DSH `0.2.2-rc.5` Web profile linked to this repository, verifying the Host plugin mount (`--dump-config` includes `browser-tools`), an authenticated RPC round trip (`controller_overview` returns `registrationMode: global`, `configurable: true`), and the right-sidebar "浏览器实况" guide card plus panel render (tab `BrowserWorkbench`, not-connected guide) with no browser console or page errors. Fresh DSH Web Profile install/start/uninstall acceptance, rewriting the stale panel and RPC e2e scripts for the new UI, and macOS/Linux hardware acceptance remain pending. Prior `0.2.1-rc.2` / `0.2.1-rc.3` and `0.1.x` conclusions do not carry over to `0.2.2-rc.5`.
 
 ## 1. 30 Browser Tools Integration
 

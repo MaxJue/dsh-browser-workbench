@@ -14,7 +14,7 @@ This repository enforces strict domain-driven modularity, zero-deadlock concurre
    - `useSyncExternalStore` for controller subscriptions.
    - `startTransition` for view switching.
    - `useId` for accessible labels.
-8. **DSH Compatibility**: Use flexible peer ranges for `@deepseek-ai/dsh-*` (e.g., `"^0.2.1-rc.2 || ^0.2.1-rc.3"`) and use `pnpm` for dependencies.
+8. **DSH Compatibility**: Use flexible peer ranges for `@deepseek-ai/dsh-*` (e.g., `"^0.2.2-rc.5"` for the current host generation) and use `pnpm` for dependencies.
 9. **Verification Gate**:
    - `npm run typecheck` must pass with 0 errors.
    - `npm test` must pass 100% of unit tests (178/178).

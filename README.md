@@ -7,10 +7,10 @@
 不只看页面。能点击、能断点、能抓请求、能读 Source Map，还能把现场证据留下。
 
 ![License](https://img.shields.io/badge/license-MIT-2563EB?style=for-the-badge)
-![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2%20%7C%200.2.1--rc.3-7C3AED?style=for-the-badge)
+![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.5-7C3AED?style=for-the-badge)
 ![Node](https://img.shields.io/badge/Node-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-16A34A?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-171%20passing-22C55E?style=for-the-badge)
-![Status](https://img.shields.io/badge/status-1.0.0--rc8%20%C2%B7%20not%20on%20npm-F97316?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-173%20passing-22C55E?style=for-the-badge)
+![Status](https://img.shields.io/badge/status-1.0.0--rc9%20%C2%B7%20not%20on%20npm-F97316?style=for-the-badge)
 
 [源码安装](#安装) · [看图了解](#能力展示) · [29 个工具](#功能介绍) · [验证结果](#验证结果) · [技术细节](./TECHNICAL.md) <br> <br>
 当前语言为简体中文 | [English](./README.en.md)
@@ -21,7 +21,7 @@
 
 > [!IMPORTANT]
 > 这是独立开发的社区插件，不是 DeepSeek 官方发布、维护或背书的插件。它不会修改 DeepSeek Harness 的核心代码。<br>
-> 当前版本 `1.0.0-rc8`，**尚未发布到 npm**（见 [PUBLISHING.md](./PUBLISHING.md)），请按下面的[源码安装](#安装)流程使用。<br>
+> 当前版本 `1.0.0-rc9`，**尚未发布到 npm**（见 [PUBLISHING.md](./PUBLISHING.md)），请按下面的[源码安装](#安装)流程使用。<br>
 > 项目仍在开发中，遇到 bug 或任何意料外的情况都可以通过 issue 反馈。
 >
 >> *如果该插件帮上你的忙了，还请点颗星让更多人看见~非常感谢 Thanks♪(･ω･)ﾉ*
@@ -30,13 +30,13 @@
 
 | 项目 | 真实情况 |
 | --- | --- |
-| 版本 | `1.0.0-rc8`(Release Candidate) |
-| 目标宿主 | DSH `0.2.1-rc.2` / `0.2.1-rc.3`（peer 声明为范围 `^0.2.1-rc.2 \|\| ^0.2.1-rc.3`），Cordis `~4.0.5`，Schemastery `~3.18.5` |
+| 版本 | `1.0.0-rc9`(Release Candidate) |
+| 目标宿主 | DSH `0.2.2-rc.5`（peer 声明为范围 `^0.2.2-rc.5`），Cordis `~4.1.0`，Schemastery `~3.19.0` |
 | npm 状态 | **未发布**。首次发布流程尚未执行，npm 安装方式目前不可用 |
 | 仓库内容 | 源码 + 测试 + 文档；**不含** `lib/` 构建产物，也不含 `node_modules`、`.sandbox`、`.npm-cache` |
-| 已实测通过 | 严格类型检查、171 个单测、正式构建、29 工具真实 Chromium 回归、独立进程 + 独立 `DSH_HOME` 的分层验证 |
-| 待完成 | 面板与 RPC 两个 e2e 脚本按新 UI 重写；全新 DSH Web Profile 的安装/启动/认证/卸载人工验收；npm 首次发布 |
-| 未声明兼容 | DSH `0.1.x`(RC7 及更早)、macOS / Linux 实机、任意第三方浏览器插件 |
+| 已实测通过 | 严格类型检查、173 个单测、正式构建、29 工具真实 Chromium 回归、DSH `0.2.2-rc.5` 隔离 Web Profile 启动（Host 插件挂载、认证 RPC 往返、右侧栏入口卡与面板渲染） |
+| 待完成 | 面板与 RPC 两个 e2e 脚本按新 UI 重写；全新 DSH Web Profile 的安装/启动/卸载人工验收；npm 首次发布 |
+| 未声明兼容 | DSH `0.1.x`、`0.2.1.x`(RC8 及更早)、macOS / Linux 实机、任意第三方浏览器插件 |
 
 ## 插件简介
 
@@ -138,13 +138,13 @@ npm run build        # 产出 lib/index.mjs、lib/index.d.mts、lib/client.js �
 打包并装进 Profile：
 
 ```powershell
-npm pack             # 生成 dsh-browser-workbench-1.0.0-rc8.tgz
-dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scripts --config.auto-install-peers=false
+npm pack             # 生成 dsh-browser-workbench-1.0.0-rc9.tgz
+dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc9.tgz --ignore-scripts --config.auto-install-peers=false
 ```
 
 也可以直接把仓库目录加进 Profile（`dsh plugin --profile web add <仓库绝对路径>`）；后续改代码只需重新 `npm run build`，不必重新安装。
 
-> `dsh plugin --profile web add dsh-browser-workbench@1.0.0-rc8` 这种 npm 方式在你完成首次发布前会失败，因为包还没上 Registry。
+> `dsh plugin --profile web add dsh-browser-workbench@1.0.0-rc9` 这种 npm 方式在你完成首次发布前会失败，因为包还没上 Registry。
 
 在 Profile 的 `cordis.patch.yml` 中启用：
 
@@ -340,7 +340,7 @@ Runtime 层使用真实 Chrome（`155.0.8059.85`）经 `external-cdp` 连接本�
 
 ## 兼容范围
 
-版本 `1.0.0-rc8` 的目标宿主是 DSH `0.2.1-rc.2` / `0.2.1-rc.3`，要求 Cordis `~4.0.5`、Schemastery `~3.18.5`、Node `^22.19.0 || >=24.0.0`。更早的 `1.0.0-rc7` 及之前版本只对齐过 DSH `0.1.x`，未在 DSH `0.2.x` 上验证，`0.1.x` 时期的验证结论不适用。
+版本 `1.0.0-rc9` 的目标宿主是 DSH `0.2.2-rc.5`，要求 Cordis `~4.1.0`、Schemastery `~3.19.0`、Node `^22.19.0 || >=24.0.0`。更早的 `1.0.0-rc8` 只对齐过 DSH `0.2.1-rc.2` / `0.2.1-rc.3`，`1.0.0-rc7` 及之前只对齐过 DSH `0.1.x`；这些旧版本的验证结论不适用于 `0.2.2-rc.5` 宿主。
 
 已在 Windows + Node 22.x + pnpm 11.x + 真实 Chrome 上实测；macOS、Linux 与其他 Chromium 分支未做实机验证。
 

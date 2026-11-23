@@ -6,7 +6,7 @@
 
 > 2026-10 更新：默认注册模式已改为 `global`，并新增 `providerMode: auto`（Session 首次调用浏览器工具时自动启动该 Session 独立的持久化 Chromium）。下文中「托管启动不在工具面暴露」「Provider 只接受 external-cdp」「不启动后台浏览器」等边界仅描述当次验证时的代码状态，已不适用于当前代码。
 
-> 2026-10-26 更新：客户端面板已收敛为单一实况视图，剥离人工接管（Takeover）机制，保留纯观察实况；composer 绑定控件删除，新增设置页三态绑定、`disabled` 模式、`externalCdpEndpoint` 与外部 CDP 自动连接，工具收敛至 29 个，单测为 171 项全绿。第十四、十五节中涉及「9 视图」「控制器菜单」「composer 控件」「人工接管」的结论已失效，逐项标注见第十六节。
+> 2026-10-26 更新：客户端面板已收敛为单一实况视图，剥离人工接管（Takeover）机制，保留纯观察实况；composer 绑定控件删除，新增设置页三态绑定、`disabled` 模式、`externalCdpEndpoint` 与外部 CDP 自动连接，工具收敛至 29 个，单测为 173 项全绿。第十四、十五节中涉及「9 视图」「控制器菜单」「composer 控件」「人工接管」的结论已失效，逐项标注见第十六节。
 
 候选状态以外部候选身份文件和 tarball 摘要为准。本文描述测试结果，不能单独证明某个版本已经完成 Git Tag、GitHub Release 或 npm 发布。
 
@@ -14,19 +14,19 @@
 
 ```text
 package: dsh-browser-workbench
-version: 1.0.0-rc8
-DSH compatibility target: 0.2.1-rc.2 / 0.2.1-rc.3
-0.2.1-rc.2 validation: peer dependency check, strict typecheck, production build, Session Controller integration, 29-tool Chromium regression
+version: 1.0.0-rc9
+DSH compatibility target: 0.2.2-rc.5
+0.2.2-rc.5 validation: strict typecheck, 173 unit tests, production build, 29-tool Chromium regression (140/140 checks), isolated DSH Web profile boot
 full browser runtime validation: 29-tool regression passed; fresh DSH Web Profile lifecycle and UI acceptance pending
-Node.js: 22.x
+Node.js: 24.x
 package manager: pnpm 11.x
 ```
 
-RC8 的直接 DSH peers 声明为范围 `^0.2.1-rc.2 || ^0.2.1-rc.3`，Cordis 为 `~4.0.5`，Schemastery 为 `~3.18.5`。旧版 `0.1.x` 兼容范围不再声明。
+RC9 的直接 DSH peers 声明为 `^0.2.2-rc.5`，Cordis 为 `~4.1.0`，Schemastery 为 `~3.19.0`，`@deepseek-ai/dsh-error` 作为类型依赖显式加入。旧版 `0.1.x`、`0.2.1.x` 兼容范围不再声明。
 
-DSH `0.2.1-rc.2` 更新了 Connection Peer 模型和传递 peer 依赖。BrowserWorkbench 继续注册 Connection 的认证精确 Fetch Route，认证、Host/Origin、请求体限制和取消由 Connection 提供。`dsh-tools` 新增 `dsh-working-directory` peer，后者依赖 `dsh-fs`；二者已加入开发验证依赖图。已移除停止发布的 `dsh-invariants`。
+DSH `0.2.2-rc.5` 把 `HarnessError` 基类迁到独立的 `@deepseek-ai/dsh-error` 包，并把 Cordis 升到 `~4.1.0`、Schemastery 升到 `~3.19.0`。BrowserWorkbench 仍通过 Connection 的认证精确 Fetch Route 暴露 `/api/browser-tools`，认证、Host/Origin、请求体限制和取消由 Connection 提供；`cordis.patch.yml` 的 `insert` 方言在 loader 1.1.0 下未变，组合后的配置树仍生成 `browser-tools` 条目。
 
-在 DSH `0.2.1-rc.2` 下，严格类型检查、Host/Client 正式构建、`pnpm peers check`、build-registry 检查、真实 App Boot Session Controller 集成和固定 Chromium `149.0.7827.55` 的 29 工具完整集成均通过。完整集成覆盖面板、分屏、持久化 Profile、扩展、Debugger、诊断取证、Network、性能产物、外部 CDP 和清理路径；所有断言通过，临时运行时、监听端口和外部 CDP 均完成清理。全新 DSH Web Profile 安装/启动/认证/卸载及 DSH Web UI 人工验收仍待完成。此前 `0.1.x` 验证不代表兼容 `0.2.x`，不沿用旧版验证结论。
+在 DSH `0.2.2-rc.5` 下，严格类型检查、Host/Client 正式构建、173 项单测与本机 Chrome `158.0.8127.37` 的 29 工具完整集成（140 项断言）均通过；另以隔离 `DSH_HOME` 启动真实 DSH `0.2.2-rc.5` Web Profile 并链接本仓库，验证了 Host 插件挂载（`--dump-config` 含 `browser-tools`）、认证 RPC 往返（`controller_overview` 返回 `registrationMode: global`、`configurable: true`）、右侧栏「浏览器实况」入口卡与面板渲染（标签 `BrowserWorkbench`、未连接引导），浏览器控制台与页面均无错误。全新 DSH Web Profile 的安装/启动/卸载人工验收、面板与 RPC 两个 e2e 脚本按新 UI 重写、macOS/Linux 实机验收仍待完成。此前 `0.2.1-rc.2` / `0.2.1-rc.3` 与 `0.1.x` 的验证结论不适用于 `0.2.2-rc.5`。
 
 本报告不自动承诺后续 DSH RC、正式版、其他操作系统或所有第三方浏览器插件兼容。
 

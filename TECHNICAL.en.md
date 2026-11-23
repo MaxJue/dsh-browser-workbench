@@ -2,7 +2,7 @@
 
 [简体中文](./TECHNICAL.md) | English Version
 
-Version `1.0.0-rc8` targets DSH `0.2.1-rc.2` / `0.2.1-rc.3` (declared as peer range `^0.2.1-rc.2 || ^0.2.1-rc.3`), using Cordis `~4.0.5` and Schemastery `~3.18.5`.
+Version `1.0.0-rc9` targets DSH `0.2.2-rc.5` (declared as peer range `^0.2.2-rc.5`), using Cordis `~4.1.0` and Schemastery `~3.19.0`.
 
 This document specifies the configuration options, tool registration modes, browser state models, security boundaries, internal identifiers, 30 Agent tools, the live-only panel, and the settings-page binding flow. For general installation and feature overviews, see [README.en.md](./README.en.md). For test records, see [VALIDATION.en.md](./VALIDATION.en.md).
 

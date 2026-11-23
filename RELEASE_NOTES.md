@@ -1,5 +1,34 @@
 # DSH BrowserWorkbench Release Notes
 
+## Version 1.0.0-rc9
+
+### Overview
+
+`dsh-browser-workbench` version `1.0.0-rc9` moves the plugin from DSH `0.2.1-rc.2` / `0.2.1-rc.3` to DSH `0.2.2-rc.5`. Functionally it is the same workbench as rc8; the release is a host-compatibility upgrade.
+
+---
+
+### Host Compatibility Changes
+
+- **DSH peers raised to `^0.2.2-rc.5`**: every direct `@deepseek-ai/dsh-*` peer now declares the rc.5 range instead of the rc.2/rc.3 range, and all development dependencies are pinned to `0.2.2-rc.5`.
+- **Cordis `~4.1.0` / Schemastery `~3.19.0`**: aligned with the rc.5 host dependency graph.
+- **`@deepseek-ai/dsh-error` added**: DSH `0.2.2-rc.5` moves the `HarnessError` base class into its own package and `dsh-llm` re-exports it. The plugin's `BrowserError` keeps extending `HarnessError` with the unchanged `(message, code, options)` constructor; the new package is declared so the type resolves instead of silently degrading to `any`.
+- **Loader patch dialect revalidated**: `cordis.patch.yml` keeps the `insert` list dialect under loader 1.1.0; the composed profile tree still yields the `browser-tools` entry.
+- **Client slots revalidated**: `sidebar.right.pane.tab` (keyed by the tab type id), `settings.section`, `sidebarRightTabs.register`, and the guide entry contract are unchanged in shape; the right-sidebar guide card and panel body load on rc.5 without console errors.
+- **Build script without `npm`**: `npm run build` became `tsc --noEmit -p tsconfig.json && tsdown`, so the verification gate no longer depends on an npm binary being on `PATH`.
+
+### Verification
+
+- Strict typecheck: 0 errors.
+- Unit tests: 173/173 pass (`node --experimental-strip-types --test tests/**/*.test.mjs`).
+- Production build: `lib/index.mjs`, `lib/index.d.mts`, and `lib/client.js` build cleanly.
+- 29-tool Chromium regression: 140/140 assertions pass on local Chrome `158.0.8127.37`.
+- Isolated DSH `0.2.2-rc.5` Web profile: Host plugin mounts, authenticated `/api/browser-tools` round trip succeeds (`registrationMode: global`, `configurable: true`), the right-sidebar guide card opens the `BrowserWorkbench` panel, and the page reports no console errors.
+
+Still pending: rewriting the panel and RPC e2e scripts for the current UI, manual install/launch/uninstall acceptance on a brand-new DSH Web profile, macOS/Linux hardware acceptance, and the first npm publication.
+
+---
+
 ## Version 1.0.0-rc8
 
 ### Overview
@@ -97,9 +126,9 @@ During end-to-end sandbox verification and real UI replay, the following 7 issue
 
 | Component | Supported Version Range |
 | --- | --- |
-| DeepSeek Harness (DSH) | `0.2.1-rc.2` / `0.2.1-rc.3` (peer range: `^0.2.1-rc.2 \|\| ^0.2.1-rc.3`) |
-| Cordis | `~4.0.5` |
-| Schemastery | `~3.18.5` |
+| DeepSeek Harness (DSH) | `0.2.2-rc.5` (peer range: `^0.2.2-rc.5`) |
+| Cordis | `~4.1.0` |
+| Schemastery | `~3.19.0` |
 | React | `^18.2.0 \|\| ^19.0.0` |
 | Node.js | `^22.19.0 \|\| >=24.0.0` |
 | Package Manager | `pnpm` (>= 9.x, tested with pnpm 11.x) |

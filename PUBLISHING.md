@@ -10,7 +10,7 @@
 ## Before the First Publish
 
 - Confirm `dsh-browser-workbench` is available on npm and the publisher account has permission to claim it.
-- Confirm the intended version, package contents, README install instructions, and DSH `0.2.1-rc.2` / `0.2.1-rc.3` compatibility (`^0.2.1-rc.2 || ^0.2.1-rc.3`).
+- Confirm the intended version, package contents, README install instructions, and DSH `0.2.2-rc.5` compatibility (`^0.2.2-rc.5`, Cordis `~4.1.0`, Schemastery `~3.19.0`).
 - Complete fresh DSH Web Profile installation, startup, authentication, and UI acceptance.
 - Run the release checks, including `pnpm install --frozen-lockfile --ignore-scripts`, `pnpm peers check`, `pnpm run build`, and `node scripts/check-public-package.mjs`.
 - Sign in to npm with the account that will own and publish the package; verify it with `npm whoami`.

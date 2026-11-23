@@ -7,10 +7,10 @@
 Not just a viewer. It clicks, sets breakpoints, captures requests, resolves Source Maps — and keeps the evidence.
 
 ![License](https://img.shields.io/badge/license-MIT-2563EB?style=for-the-badge)
-![DSH](https://img.shields.io/badge/DSH-0.2.1--rc.2%20%7C%200.2.1--rc.3-7C3AED?style=for-the-badge)
+![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.5-7C3AED?style=for-the-badge)
 ![Node](https://img.shields.io/badge/Node-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-16A34A?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-171%20passing-22C55E?style=for-the-badge)
-![Status](https://img.shields.io/badge/status-1.0.0--rc8%20%C2%B7%20not%20on%20npm-F97316?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-173%20passing-22C55E?style=for-the-badge)
+![Status](https://img.shields.io/badge/status-1.0.0--rc9%20%C2%B7%20not%20on%20npm-F97316?style=for-the-badge)
 
 [Install from source](#installation) · [See it work](#what-it-looks-like) · [29 tools](#feature-reference) · [Verification](#verification-results) · [Technical details](./TECHNICAL.en.md) <br> <br>
 English | [简体中文](./README.md)
@@ -21,7 +21,7 @@ English | [简体中文](./README.md)
 
 > [!IMPORTANT]
 > This is an independently developed community plugin. It is not published, maintained, or endorsed by DeepSeek, and it does not modify DeepSeek Harness core code.<br>
-> The current version is `1.0.0-rc8` and **has not been published to npm yet** (see [PUBLISHING.md](./PUBLISHING.md)). Use the [source-install](#installation) flow below.<br>
+> The current version is `1.0.0-rc9` and **has not been published to npm yet** (see [PUBLISHING.md](./PUBLISHING.md)). Use the [source-install](#installation) flow below.<br>
 > The project is still under active development — file an issue for bugs or anything unexpected.
 >
 >> *If this plugin saves you time, a star helps others find it. Thanks!*
@@ -30,13 +30,13 @@ English | [简体中文](./README.md)
 
 | Item | Reality |
 | --- | --- |
-| Version | `1.0.0-rc8` (release candidate) |
-| Target host | DSH `0.2.1-rc.2` / `0.2.1-rc.3`, declared as the peer range `^0.2.1-rc.2 \|\| ^0.2.1-rc.3`; Cordis `~4.0.5`, Schemastery `~3.18.5` |
+| Version | `1.0.0-rc9` (release candidate) |
+| Target host | DSH `0.2.2-rc.5`, declared as the peer range `^0.2.2-rc.5`; Cordis `~4.1.0`, Schemastery `~3.19.0` |
 | npm status | **Not published.** The first release has not been made; installing from npm does not work yet |
 | Repository contents | Source, tests, docs; **no** `lib/` build output, no `node_modules`, `.sandbox`, or `.npm-cache` |
-| Verified | Strict typecheck, 171 unit tests, production build, 29-tool regression against real Chromium, layered verification in a separate process with its own `DSH_HOME` |
-| Still pending | Rewriting the panel and RPC e2e scripts for the new UI; manual install/launch/auth/uninstall acceptance on a brand-new DSH Web profile; first npm release |
-| Not claimed | DSH `0.1.x` hosts, macOS/Linux hardware, third-party browser plugins |
+| Verified | Strict typecheck, 173 unit tests, production build, 29-tool regression against real Chromium, and a boot of an isolated DSH `0.2.2-rc.5` Web profile (Host plugin mount, authenticated RPC round trip, right-sidebar guide card and panel render) |
+| Still pending | Rewriting the panel and RPC e2e scripts for the new UI; manual install/launch/uninstall acceptance on a brand-new DSH Web profile; first npm release |
+| Not claimed | DSH `0.1.x` and `0.2.1.x` hosts (RC8 and earlier), macOS/Linux hardware, third-party browser plugins |
 
 ## What this plugin is
 
@@ -138,13 +138,13 @@ npm run build        # produces lib/index.mjs, lib/index.d.mts, lib/client.js an
 Pack it and add it to the profile:
 
 ```powershell
-npm pack             # produces dsh-browser-workbench-1.0.0-rc8.tgz
-dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc8.tgz --ignore-scripts --config.auto-install-peers=false
+npm pack             # produces dsh-browser-workbench-1.0.0-rc9.tgz
+dsh plugin --profile web add ./dsh-browser-workbench-1.0.0-rc9.tgz --ignore-scripts --config.auto-install-peers=false
 ```
 
 You can also add the repository directory directly (`dsh plugin --profile web add <absolute path>`); after that, code changes only need `npm run build`, no reinstall.
 
-> The npm form `dsh plugin --profile web add dsh-browser-workbench@1.0.0-rc8` fails until the first publish, because the package is not on the registry.
+> The npm form `dsh plugin --profile web add dsh-browser-workbench@1.0.0-rc9` fails until the first publish, because the package is not on the registry.
 
 Enable it in the profile's `cordis.patch.yml`:
 
@@ -340,7 +340,7 @@ These are real behaviours intentionally kept in this version, not TODOs:
 
 ## Compatibility
 
-Version `1.0.0-rc8` targets DSH `0.2.1-rc.2` / `0.2.1-rc.3` and requires Cordis `~4.0.5`, Schemastery `~3.18.5`, and Node `^22.19.0 || >=24.0.0`. The earlier `1.0.0-rc7` and previous releases were only aligned with DSH `0.1.x` and have not been verified against DSH `0.2.x`; conclusions from the `0.1.x` era do not carry over.
+Version `1.0.0-rc9` targets DSH `0.2.2-rc.5` and requires Cordis `~4.1.0`, Schemastery `~3.19.0`, and Node `^22.19.0 || >=24.0.0`. The earlier `1.0.0-rc8` was only aligned with DSH `0.2.1-rc.2` / `0.2.1-rc.3`, and `1.0.0-rc7` and previous releases only with DSH `0.1.x`; conclusions from those hosts do not carry over to `0.2.2-rc.5`.
 
 Measured on Windows with Node 22.x, pnpm 11.x, and real Chrome; macOS, Linux, and other Chromium builds have not been tested on hardware.
 
