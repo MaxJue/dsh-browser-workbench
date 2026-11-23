@@ -204,6 +204,13 @@ export interface ViewState {
     reflowedElements: number
     fitDocumentGeneration: number
   }
+  /** 用户按住但还没松开的指针，用于把拖拽过程接成一次完整手势。 */
+  userPointer?: {
+    button: 'left' | 'middle' | 'right'
+    clickCount: number
+    streamGeneration: number
+    viewportGeneration: number
+  }
 }
 
 export interface SessionState {

@@ -17,10 +17,22 @@
 - **Client slots revalidated**: `sidebar.right.pane.tab` (keyed by the tab type id), `settings.section`, `sidebarRightTabs.register`, and the guide entry contract are unchanged in shape; the right-sidebar guide card and panel body load on rc.5 without console errors.
 - **Build script without `npm`**: `npm run build` became `tsc --noEmit -p tsconfig.json && tsdown`, so the verification gate no longer depends on an npm binary being on `PATH`.
 
+### Panel Auto-Reveal Restored
+
+- **Agent activity opens the panel again**: `src/client/auto-reveal-watcher.ts` installs inside `ctx.effect` and subscribes to the main Session and its `running` flag from `ctx.uiSession`. During a running turn with the panel closed, it polls the read-only `panel_activity` endpoint once per second and calls `controller.open('live')` only when the probe reports page content it has not shown before. A probe allocates no View and starts no screencast.
+- **It never fights the user for attention**: at most one automatic reveal per turn. Closing an auto-revealed panel suppresses the rest of that turn; a finished turn resets the suppression so the next turn gets one fresh chance. The `shouldAutoReveal` / `activitySignature` decision kept from the earlier design is now genuinely wired to the panel controller.
+- **Entry point unchanged**: the sidebar's "开始" → 「浏览器实况」 guide card still opens the panel by hand, and the composer still carries no browser binding control.
+
+### Live Page Input Restored
+
+- **The live picture is interactive again**: clicking, typing, drag, wheel, IME composition, and paste inside the right-sidebar panel now reach the real page. `src/client/hooks/usePointerGestures.ts` and `src/client/hooks/useImeProxy.ts` (a 1px transparent `textarea` IME proxy focused at the click point) turn panel events into `src/input/user-input-actions.ts` CDP calls through the panel-only `user_input` RPC endpoint.
+- **Coordinates and frames are bound together**: `src/client/utils/geometry.ts` projects clicks through the `object-fit: contain` letterboxing; every input carries `viewId` / `streamGeneration` / `frameSequence` / `viewportGeneration`, and a stale stream or viewport answers `STALE_LIVE_VIEW` instead of clicking into another picture.
+- **No model tool was added**: the write-back path serves humans only and shares the per-Session queue with the model tools, so both sides serialize on the same page. Clipboard paste keeps the 8 files / 8MB per file / 16MB total limits.
+
 ### Verification
 
 - Strict typecheck: 0 errors.
-- Unit tests: 173/173 pass (`node --experimental-strip-types --test tests/**/*.test.mjs`).
+- Unit tests: 186/186 pass (`node --experimental-strip-types --test tests/**/*.test.mjs`).
 - Production build: `lib/index.mjs`, `lib/index.d.mts`, and `lib/client.js` build cleanly.
 - 29-tool Chromium regression: 140/140 assertions pass on local Chrome `158.0.8127.37`.
 - Isolated DSH `0.2.2-rc.5` Web profile: Host plugin mounts, authenticated `/api/browser-tools` round trip succeeds (`registrationMode: global`, `configurable: true`), the right-sidebar guide card opens the `BrowserWorkbench` panel, and the page reports no console errors.

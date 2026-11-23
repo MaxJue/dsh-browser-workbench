@@ -1,6 +1,9 @@
 import css from '../../../panel.module.css'
 import type { BrowserDiagnosticPanelSnapshot, BrowserLivePaneSnapshot, BrowserSplitViewPane } from '../../../../domain/protocol.ts'
 import { DiagnosticOverlay } from './DiagnosticOverlay.tsx'
+import type { usePointerGestures } from '../../../hooks/usePointerGestures.ts'
+
+type LivePointerHandlers = ReturnType<typeof usePointerGestures>['livePointerHandlers']
 
 export interface LivePaneProps {
   pane: BrowserSplitViewPane
@@ -13,6 +16,8 @@ export interface LivePaneProps {
   onFocusPane: () => void
   onDragStart: (event: React.DragEvent<HTMLImageElement>) => void
   onDragEnd: () => void
+  onWheel: (event: React.WheelEvent<HTMLImageElement>) => void
+  pointerHandlers: LivePointerHandlers
 }
 
 export function LivePane({
@@ -26,6 +31,8 @@ export function LivePane({
   onFocusPane,
   onDragStart,
   onDragEnd,
+  onWheel,
+  pointerHandlers,
 }: LivePaneProps) {
   const fullLabel =
     orientation === 'left-right'
@@ -61,6 +68,8 @@ export function LivePane({
             data-share-drag={shareDragArmed || undefined}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            {...pointerHandlers(pane)}
+            onWheel={onWheel}
           />
         )}
         {paneState?.frame === undefined || paneState.viewId === undefined ? null : (

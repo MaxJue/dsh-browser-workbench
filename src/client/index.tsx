@@ -6,6 +6,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar-right/client'
 import type { BrowserPanelView } from '../domain/protocol.ts'
+import { installAutoReveal } from './auto-reveal-watcher.ts'
 import { createPanelController } from './panel-controller.ts'
 import { createPort } from './port.ts'
 import { installSettingsNavIcon } from './settings-nav-icon.ts'
@@ -80,12 +81,40 @@ export const inject = [
   'connection',
   'sidebarRight',
   'sidebarRightTabs',
+  'uiSession',
 ]
 
 export function apply(ctx: BrowserClientContext): void {
   // BrowserWorkbench 的所有面板动作共用 Connection 已认证的精确 /api/browser-tools 路由。
   const port = createPort(ctx.connection)
   const controller = createPanelController(view => ctx.sidebarRight.openTab(BROWSER_TAB_KIND, { params: { view } }))
+
+  // Agent 一用浏览器就展开右侧面板：只在回答进行中、出现还没看过的页面内容时打开；
+  // 用户亲手关掉后本轮余下时间不再打扰，下一轮重新获得一次机会。
+  ctx.effect(
+    () =>
+      installAutoReveal({
+        sessions: {
+          current: () => {
+            const binding = ctx.uiSession.adapter.current.getSnapshot()
+            return binding.key === undefined ? undefined : String(binding.key)
+          },
+          subscribe: listener => {
+            const stopCurrent = ctx.uiSession.adapter.current.subscribe(listener)
+            const stopStatus = ctx.uiSession.sessionStatus.subscribe(listener)
+            return () => {
+              stopCurrent()
+              stopStatus()
+            }
+          },
+          running: sessionId => ctx.uiSession.sessionStatus.getSnapshot().get(sessionId as never)?.running,
+        },
+        controller,
+        probe: sessionId => port.activity(sessionId),
+        view: 'live',
+      }),
+    'browser scope auto reveal',
+  )
 
   ctx.effect(
     () =>

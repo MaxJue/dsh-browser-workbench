@@ -3,7 +3,7 @@ import { join } from 'node:path'
 import { fail } from '../domain/errors.ts'
 import { assertUrlAllowed } from '../domain/policy.ts'
 import type { Identity, SessionState, ToolOutput, ViewState } from '../domain/types.ts'
-import type { BrowserDebuggerInput, BrowserEmulateInput, BrowserExtensionInput, BrowserFrameCursor, BrowserLiveViewInput, BrowserNetworkInput, BrowserPanelActivity, BrowserPanelSnapshot, BrowserPanelTabInput, BrowserPanelView, BrowserProfileInput, BrowserProviderInput, BrowserRecorderInput, BrowserSplitViewInput, BrowserSplitViewPane } from '../domain/protocol.ts'
+import type { BrowserDebuggerInput, BrowserEmulateInput, BrowserExtensionInput, BrowserFrameCursor, BrowserLiveViewInput, BrowserNetworkInput, BrowserPanelActivity, BrowserPanelSnapshot, BrowserPanelTabInput, BrowserPanelView, BrowserProfileInput, BrowserProviderInput, BrowserRecorderInput, BrowserSplitViewInput, BrowserSplitViewPane, BrowserUserInput } from '../domain/protocol.ts'
 import { STANDARD_VIEWPORT } from '../view/viewport.ts'
 import { pendingSessionKey } from '../session/session-key.ts'
 import { rawCdp } from '../cdp/cdp-raw.ts'
@@ -30,6 +30,13 @@ export class BrowserRuntimePanelActions extends BrowserRuntimeToolActions {
     const session = this.sessionById(sessionId)
     if (session === undefined) return { ok: false, action: 'split_view', data: asData({ code: 'BROWSER_SESSION_NOT_READY', recoverable: true, message: 'browser session is not ready' }) }
     return this.queueSession(session, () => this.splitViewAction(session, input))
+  }
+
+  /** 面板里的真实输入；与模型工具共用同一把 Session 锁，避免两边同时操作同一张页面。 */
+  async panelUserInput(sessionId: string, input: BrowserUserInput): Promise<ToolOutput> {
+    const session = this.sessionById(sessionId)
+    if (session === undefined) return { ok: false, action: 'user_input', viewId: input.viewId, data: asData({ code: 'BROWSER_SESSION_NOT_READY', recoverable: true, message: 'browser session is not ready' }) }
+    return this.queueSession(session, () => this.userInputAction(session, input))
   }
 
   async panelNetwork(sessionId: string, input: BrowserNetworkInput): Promise<ToolOutput> {

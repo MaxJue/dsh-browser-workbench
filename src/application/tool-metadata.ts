@@ -1,6 +1,6 @@
 import { BrowserError } from '../domain/errors.ts'
 import type { Identity, ToolOutput } from '../domain/types.ts'
-import type { BrowserDebuggerAction, BrowserDiagnoseAction, BrowserEmulateAction, BrowserEvaluateAction, BrowserExtensionAction, BrowserLiveViewAction, BrowserNetworkAction, BrowserPanelTabAction, BrowserPanelView, BrowserProfileAction, BrowserProviderAction, BrowserRecorderAction, BrowserSplitViewAction } from '../domain/protocol.ts'
+import type { BrowserDebuggerAction, BrowserDiagnoseAction, BrowserEmulateAction, BrowserEvaluateAction, BrowserExtensionAction, BrowserLiveViewAction, BrowserNetworkAction, BrowserPanelTabAction, BrowserPanelView, BrowserProfileAction, BrowserProviderAction, BrowserRecorderAction, BrowserSplitViewAction, BrowserUserInputAction } from '../domain/protocol.ts'
 import type { ToolRunContext, ValueSchemaSpec } from '@deepseek-ai/dsh-tools'
 
 export const outputSchema = { type: 'object' as const, additionalProperties: false, properties: { ok: { type: 'boolean' as const, required: true as const }, action: { type: 'string' as const, required: true as const }, viewId: { type: 'string' as const }, data: { type: 'json' as const } } } satisfies ValueSchemaSpec
@@ -30,4 +30,5 @@ export const extensionActions: BrowserExtensionAction[] = ['list', 'install', 'e
 export const liveViewActions: BrowserLiveViewAction[] = ['status', 'standard', 'adaptive', 'initialize', 'resize']
 export const splitViewActions: BrowserSplitViewAction[] = ['status', 'open', 'close', 'swap', 'assign', 'focus', 'ratio', 'orientation', 'resize']
 export const panelTabActions: BrowserPanelTabAction[] = ['new', 'select', 'close', 'back', 'forward', 'reload', 'navigate']
+export const userInputActions: BrowserUserInputAction[] = ['mouse_click', 'mouse_down', 'mouse_move', 'mouse_up', 'mouse_wheel', 'key_press', 'insert_text', 'composition_commit', 'paste']
 export const panelViews: BrowserPanelView[] = ['live', 'diagnostic', 'console', 'network', 'debugger', 'performance', 'provider', 'extensions', 'emulation']

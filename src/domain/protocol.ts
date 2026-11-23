@@ -346,6 +346,35 @@ export interface BrowserSplitViewInput {
   notifyAgent?: boolean
 }
 
+export type BrowserUserInputAction = 'mouse_click' | 'mouse_down' | 'mouse_move' | 'mouse_up' | 'mouse_wheel' | 'key_press' | 'insert_text' | 'composition_commit' | 'paste'
+
+export type BrowserUserInputButton = 'left' | 'middle' | 'right'
+
+/**
+ * 面板里用户对实况画面的一次真实输入。
+ *
+ * 携带帧身份（流代次、帧序号、Viewport 代次），宿主据此拒绝把按下时的坐标投递到已经变化的页面上；
+ * 它只由人从面板发起，不是模型工具。
+ */
+export interface BrowserUserInputBase {
+  viewId: string
+  streamGeneration: number
+  frameSequence: number
+  viewportGeneration: number
+}
+
+export type BrowserUserInput = BrowserUserInputBase & (
+  | { action: 'mouse_click'; x: number; y: number; button?: BrowserUserInputButton; clickCount?: number }
+  | { action: 'mouse_down'; x: number; y: number; button?: BrowserUserInputButton; clickCount?: number }
+  | { action: 'mouse_move'; x: number; y: number }
+  | { action: 'mouse_up'; x: number; y: number }
+  | { action: 'mouse_wheel'; x: number; y: number; deltaX: number; deltaY: number }
+  | { action: 'key_press'; key: string; modifiers?: Array<'Control' | 'Alt' | 'Shift' | 'Meta'> }
+  | { action: 'insert_text'; text: string }
+  | { action: 'composition_commit'; text: string }
+  | { action: 'paste'; text?: string; html?: string; uriList?: string; files?: Array<{ name: string; mediaType: string; data: string }> }
+)
+
 export interface BrowserNetworkInput {
   action: BrowserNetworkAction
   viewId?: string

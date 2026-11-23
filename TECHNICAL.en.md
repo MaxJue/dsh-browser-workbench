@@ -260,7 +260,19 @@ The client panel is now a single view: `src/client/components/panel/BrowserPanel
 | `description` | "Watch and take over the browser the Agent is driving" |
 | `icon` | `BrowserGlyph` (`src/client/components/common/BrowserGlyph.tsx`) |
 
-`conversation.input.right` is no longer registered: there is no binding control next to the composer, and no `useAutoReveal` auto-opened panel. Binding is chosen on the settings page; the live view is opened from the right sidebar.
+`conversation.input.right` is no longer registered: there is no binding control next to the composer. Binding is chosen on the settings page. Panel auto-reveal lives in `src/client/auto-reveal-watcher.ts`: inside `ctx.effect` it subscribes to the main Session and its running flag from `ctx.uiSession`, and calls `controller.open('live')` only when a turn is running, the panel is closed, and `panel_activity` reports page content it has not shown yet. Closing the panel by hand keeps it quiet for the rest of that turn; a finished turn (running to false) resets it. The probe polls once per second and is strictly read-only: no View allocation and no screencast.
+
+#### Keyboard and pointer on the live picture
+
+The panel paints screencast images, not a focusable web page, so human input takes a separate write-back path:
+
+1. **Coordinate projection**: `src/client/utils/geometry.ts` maps the click through the `object-fit: contain` scale and letterbox offsets onto real viewport pixels; clicks that land on the bars are dropped.
+2. **Pointer gestures**: `src/client/hooks/usePointerGestures.ts` turns press / move / release into one gesture, coalesces drags per frame, and drops every follow-up move/up when the host refused the press.
+3. **Keyboard and IME**: `src/client/hooks/useImeProxy.ts` parks a 1px transparent `textarea` in the panel as an IME proxy and focuses it at the click point. Printable characters go through `insertText`, composition goes through `composition_commit` (`Input.imeSetComposition` first, then the commit), special keys go through `key_press`, and paste goes through `paste` (8 files, 8MB per file, 16MB total).
+4. **Write-back RPC**: `port.userInput` calls the panel-only `user_input` endpoint, and `src/input/user-input-actions.ts` translates it into CDP `Input.dispatchMouseEvent` / `Input.insertText` / `Input.imeSetComposition` / Playwright `keyboard.press`.
+5. **Frame identity**: every input carries `viewId`, `streamGeneration`, `frameSequence`, and `viewportGeneration`; when the stream or viewport generation has moved on, the host answers `STALE_LIVE_VIEW` instead of delivering coordinates into a different picture. `panelUserInput` shares the per-Session queue with the model tools, so both sides serialize.
+
+This path serves humans only: it is not a model tool, and there is no `browser_input` tool definition — the agent keeps using `browser_click` / `browser_type` / `browser_press_key`.
 
 ### 2. Settings-Page Binding Section
 
@@ -307,7 +319,7 @@ Modules removed by the panel slimming; neither documentation nor code exposes th
 | --- | --- |
 | `src/client/components/views/{console,debugger,diagnostic,emulation,extensions,network,performance,provider}/` | The eight non-live view component directories |
 | `src/client/components/control/{BrowserControl,ControllerMenu,ArbitratedToolsDialog}.tsx` | Composer binding control, controller menu, arbitration tools dialog |
-| `src/client/hooks/{useAutoReveal,useControllerBinding,usePanelSync}.ts` | Auto-open panel, binding-state subscription, panel sync |
+| `src/client/hooks/{useControllerBinding,usePanelSync}.ts` | Binding-state subscription, panel sync |
 | `controller_set_registration_mode` (RPC endpoint) | The old registration-mode write path, superseded by the config write-back behind `controller_set_browser_choice` |
 
 `LiveView.tsx`, `LivePane.tsx`, `LiveControls.tsx`, and `DiagnosticOverlay.tsx` remain under `src/client/components/views/live/`.

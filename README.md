@@ -9,7 +9,7 @@
 ![License](https://img.shields.io/badge/license-MIT-2563EB?style=for-the-badge)
 ![DSH](https://img.shields.io/badge/DSH-0.2.2--rc.5-7C3AED?style=for-the-badge)
 ![Node](https://img.shields.io/badge/Node-%5E22.19.0%20%7C%7C%20%3E%3D24.0.0-16A34A?style=for-the-badge&logo=nodedotjs&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-173%20passing-22C55E?style=for-the-badge)
+![Tests](https://img.shields.io/badge/tests-186%20passing-22C55E?style=for-the-badge)
 ![Status](https://img.shields.io/badge/status-1.0.0--rc9%20%C2%B7%20not%20on%20npm-F97316?style=for-the-badge)
 
 [源码安装](#安装) · [看图了解](#能力展示) · [29 个工具](#功能介绍) · [验证结果](#验证结果) · [技术细节](./TECHNICAL.md) <br> <br>
@@ -34,7 +34,7 @@
 | 目标宿主 | DSH `0.2.2-rc.5`（peer 声明为范围 `^0.2.2-rc.5`），Cordis `~4.1.0`，Schemastery `~3.19.0` |
 | npm 状态 | **未发布**。首次发布流程尚未执行，npm 安装方式目前不可用 |
 | 仓库内容 | 源码 + 测试 + 文档；**不含** `lib/` 构建产物，也不含 `node_modules`、`.sandbox`、`.npm-cache` |
-| 已实测通过 | 严格类型检查、173 个单测、正式构建、29 工具真实 Chromium 回归、DSH `0.2.2-rc.5` 隔离 Web Profile 启动（Host 插件挂载、认证 RPC 往返、右侧栏入口卡与面板渲染） |
+| 已实测通过 | 严格类型检查、186 个单测、正式构建、29 工具真实 Chromium 回归、DSH `0.2.2-rc.5` 隔离 Web Profile 启动（Host 插件挂载、认证 RPC 往返、右侧栏入口卡与面板渲染） |
 | 待完成 | 面板与 RPC 两个 e2e 脚本按新 UI 重写；全新 DSH Web Profile 的安装/启动/卸载人工验收；npm 首次发布 |
 | 未声明兼容 | DSH `0.1.x`、`0.2.1.x`(RC8 及更早)、macOS / Linux 实机、任意第三方浏览器插件 |
 
@@ -42,9 +42,9 @@
 
 前端调试最头疼的是什么？看不到页面结构、抓不到请求细节、断点打不进去、错误只有一句话。Agent 遇到复杂网页问题时更麻烦——只能截个图、描述几句，然后陷入"刷新试试""清缓存看看"的循环。
 
-BrowserWorkbench 在 DSH Web 右侧栏提供一个可操作的浏览器工作台，配备 29 个专门定制的自动化工具。右侧面板只保留人真正需要的东西：标签栏、地址栏（前进 / 后退 / 刷新）与真实页面实况。Console、Network、Debugger、Performance、Emulation、诊断、Provider 与扩展管理这 8 个视图已经从面板移除——这些能力本来就属于 Agent，全部由 `browser_*` 工具直接提供（`browser_console_messages`、`browser_network_requests`、`browser_debugger`、`browser_profile`、`browser_diagnose`、`browser_emulate` 等），不再做一份人肉 UI 复刻。Agent 能直接读页面结构、操作元素、查看 Console、追踪请求、下断点、读调用栈、解析 Source Map、分析性能，并把操作前后的完整现场记录下来。
+BrowserWorkbench 在 DSH Web 右侧栏提供一个可操作的浏览器工作台，配备 29 个专门定制的自动化工具。右侧面板只保留人真正需要的东西：标签栏、地址栏（前进 / 后退 / 刷新）与真实页面实况，而且**画面可以直接操作**——点输入框就能打字（中文输入法、粘贴、方向键、Backspace、滚轮都走真实浏览器的原生路径），点按钮、拖拽、滚动同样投递到 Agent 正在操作的同一个页面。Console、Network、Debugger、Performance、Emulation、诊断、Provider 与扩展管理这 8 个视图已经从面板移除——这些能力本来就属于 Agent，全部由 `browser_*` 工具直接提供（`browser_console_messages`、`browser_network_requests`、`browser_debugger`、`browser_profile`、`browser_diagnose`、`browser_emulate` 等），不再做一份人肉 UI 复刻。Agent 能直接读页面结构、操作元素、查看 Console、追踪请求、下断点、读调用栈、解析 Source Map、分析性能，并把操作前后的完整现场记录下来。
 
-**入口在右侧栏「开始」页**：注册 `sidebarRightTabs` 时带了一枚 `guide` 条目，打开右侧栏的「开始」页就能看到一张卡片——标题「浏览器实况」、描述「查看 Agent 正在操作的浏览器」，点一下就打开面板。**输入框下方不再有任何浏览器绑定控件**：原来的 `BrowserControl`、`ControllerMenu`、`ArbitratedToolsDialog` 以及自动弹出面板的行为都已删除，绑定只在设置页做。
+**入口在右侧栏「开始」页**：注册 `sidebarRightTabs` 时带了一枚 `guide` 条目，打开右侧栏的「开始」页就能看到一张卡片——标题「浏览器实况」、描述「查看 Agent 正在操作的浏览器」，点一下就打开面板。**Agent 真在操作浏览器时会自动展开这块面板**：每轮回答最多自动展开一次，用只读的 `panel_activity` 探测到「还没看过的页面内容」才动手；用户亲手关掉后，本轮余下时间不再打扰，下一轮重新获得一次机会。**输入框下方不再有任何浏览器绑定控件**：原来的 `BrowserControl`、`ControllerMenu`、`ArbitratedToolsDialog` 均已删除，绑定只在设置页做。
 
 **开箱即用，每个 Session 一个独立浏览器**：工具默认全局注册，新 Session 无需再选择或手动绑定。Agent 第一次调用浏览器工具时，插件自动为该 Session 启动一个独立的持久化 Chromium（`providerMode: auto`），页面、Cookie 与登录态互不共享，不同项目并行时互不干扰。需要连接自己已开启远程调试的 Chrome 或 Edge 时，首选 **设置 → 浏览器 → 连接现有 Chrome / Edge**：填好调试端点后点「连接」，之后 Session 首次调用浏览器工具会自动连上该端点。`browser_provider` 仍然可用，适合在会话里临时 connect / disconnect。
 
@@ -73,7 +73,7 @@ BrowserWorkbench 在 DSH Web 右侧栏提供一个可操作的浏览器工作台
 
 ### 一个窗口，完整调试链路
 
-Agent 对话、真实页面、标签栏与地址栏都在 DSH 右侧栏的同一个窗口里。面板刻意做薄：它只负责让你看见 Agent 正在操作的那个页面。调试结论、报错原文、请求列表、调用栈这些内容回到对话里呈现——它们由工具调用产生，不占面板空间。
+Agent 对话、真实页面、标签栏与地址栏都在 DSH 右侧栏的同一个窗口里。面板刻意做薄：它只负责让你看见并且随时接管 Agent 正在操作的那个页面——点击、输入、滚动都直接落到同一个浏览器，不需要另开窗口。调试结论、报错原文、请求列表、调用栈这些内容回到对话里呈现——它们由工具调用产生，不占面板空间。
 
 **典型排查场景**：页面布局突然错乱。Agent 调用 `browser_snapshot` 获取页面 ARIA 结构树与元素引用，结合 `browser_get_attribute` 或 `browser_diagnose inspect` 审查样式与容器属性，发现某个容器被异步脚本隐藏。接着用 `browser_debugger` 在相关脚本里下断点，配合 Source Map 找到原始代码位置，再用 `browser_console_messages` 与 `browser_network_requests` 交叉验证，最终定位到一个状态更新时序问题。整个过程中你都能在右侧实况里盯着同一个页面。
 

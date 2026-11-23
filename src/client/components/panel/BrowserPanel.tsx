@@ -2,17 +2,23 @@ import { useEffect, useRef, useState } from 'react'
 import css from '../../panel.module.css'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {
+  BrowserLivePaneSnapshot,
   BrowserLiveViewInput,
   BrowserLiveViewMode,
   BrowserPanelTabInput,
   BrowserSplitViewInput,
+  BrowserSplitViewPane,
+  BrowserUserInput,
 } from '../../../domain/protocol.ts'
 import type { PanelController } from '../../panel-controller.ts'
 import type { Port } from '../../port.ts'
 import { saveLiveViewPreference } from '../../panel-model.ts'
+import { calculatePointProjection } from '../../utils/geometry.ts'
 import { useBrowserSnapshot } from '../../hooks/useBrowserSnapshot.ts'
 import { useSplitResize } from '../../hooks/useSplitResize.ts'
 import { useLiveViewport } from '../../hooks/useLiveViewport.ts'
+import { usePointerGestures, type LiveIdentity } from '../../hooks/usePointerGestures.ts'
+import { useImeProxy } from '../../hooks/useImeProxy.ts'
 import { TabBar } from '../common/TabBar.tsx'
 import { NavigationBar } from '../common/NavigationBar.tsx'
 import { ErrorAlert } from '../common/ErrorAlert.tsx'
@@ -92,9 +98,52 @@ export function BrowserPanel({
     run(() => port.liveView(sessionId, input), '实况显示模式切换需要恢复后重试。')
   const runSplitView = (input: BrowserSplitViewInput) =>
     run(() => port.splitView(sessionId, input), '浏览器双页分屏操作需要恢复后重试。')
+  // 输入端点只在较新的宿主上存在：客户端已升级而宿主没重启时，把 RPC 的原文换成可执行的提示。
+  const runInput = async (input: BrowserUserInput): Promise<unknown> => {
+    try {
+      return await port.userInput(sessionId, input)
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : String(cause)
+      setError(
+        message.includes('unknown browser tools endpoint')
+          ? '宿主仍是旧版本，还不支持面板输入：请完全退出并重新打开 DSH，然后刷新本页面。'
+          : message,
+      )
+      return undefined
+    }
+  }
 
   const activeTab = snapshot.tabs.find(item => item.viewId === snapshot.activeViewId)
   const splitOrientation = snapshot.splitView?.orientation ?? 'top-bottom'
+
+  const paneSnapshot = (pane: BrowserSplitViewPane): BrowserLivePaneSnapshot | undefined =>
+    snapshot.splitView?.panes?.find(item => item.pane === pane)
+
+  // 输入绑定的是「按下那一刻的画面」：坐标、帧序号与 Viewport 代次一起送宿主，画面变了整次输入作废。
+  const liveIdentity = (pane?: BrowserSplitViewPane): LiveIdentity | undefined => {
+    const target = pane === undefined ? undefined : paneSnapshot(pane)
+    const viewId = target?.viewId ?? snapshot.activeViewId
+    const frame = target?.frame ?? snapshot.frame
+    if (viewId === undefined || frame === undefined) return undefined
+    return {
+      viewId,
+      streamGeneration: frame.streamGeneration,
+      frameSequence: frame.sequence,
+      viewportGeneration: frame.viewportGeneration,
+    }
+  }
+
+  const point = (
+    clientX: number,
+    clientY: number,
+    pane?: BrowserSplitViewPane,
+    clamp = false,
+  ): { x: number; y: number } | undefined => {
+    const image = pane === 'top' ? topLiveRef.current : pane === 'bottom' ? bottomLiveRef.current : liveRef.current
+    const frame = pane === undefined ? snapshot.frame : paneSnapshot(pane)?.frame
+    if (image === null || frame === undefined) return undefined
+    return calculatePointProjection(image.getBoundingClientRect(), frame, clientX, clientY, clamp)
+  }
 
   const { splitRatio, splitContainerRef, dividerProps } = useSplitResize(
     snapshot.splitView?.ratio ?? 0.5,
@@ -109,6 +158,22 @@ export function BrowserPanel({
     splitRatio,
     runLiveView,
     runSplitView,
+  )
+
+  const { imeProxyRef, focusImeProxy, sendKey, imeProxyHandlers } = useImeProxy(
+    livePanelRef,
+    liveIdentity,
+    runInput,
+    setError,
+  )
+
+  const { livePointerHandlers } = usePointerGestures(
+    shareDragArmed,
+    point,
+    liveIdentity,
+    focusImeProxy,
+    runInput,
+    sendKey,
   )
 
   useEffect(() => {
@@ -172,6 +237,23 @@ export function BrowserPanel({
     window.setTimeout(() => {
       suppressSharedFrameClick.current = false
     }, 0)
+  }
+
+  // 滚轮同样先映射坐标：页面把滚动绑在指针所在元素上，不传坐标就会滚错容器。
+  const onWheel = (event: React.WheelEvent<HTMLImageElement>, pane?: BrowserSplitViewPane) => {
+    event.preventDefault()
+    const target = point(event.clientX, event.clientY, pane)
+    const identity = liveIdentity(pane)
+    const viewportHeight = pane === undefined ? snapshot.liveView?.height : paneSnapshot(pane)?.liveView.height
+    const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? Math.max(viewportHeight ?? 720, 1) : 1
+    if (target === undefined || identity === undefined) return
+    void runInput({
+      action: 'mouse_wheel',
+      ...target,
+      ...identity,
+      deltaX: event.deltaX * unit,
+      deltaY: event.deltaY * unit,
+    })
   }
 
   return (
@@ -244,6 +326,10 @@ export function BrowserPanel({
                   topLiveRef={topLiveRef}
                   bottomLiveRef={bottomLiveRef}
                   splitContainerRef={splitContainerRef}
+                  imeProxyRef={imeProxyRef}
+                  imeProxyHandlers={imeProxyHandlers}
+                  pointerHandlers={livePointerHandlers}
+                  onWheel={onWheel}
                   dividerProps={dividerProps}
                   onDragStart={onDragStart}
                   onDragEnd={onDragEnd}

@@ -28,6 +28,8 @@ import type {
   BrowserRecorderInput,
   BrowserSplitViewAction,
   BrowserSplitViewInput,
+  BrowserUserInput,
+  BrowserUserInputAction,
 } from '../domain/protocol.ts'
 import {
   debuggerActions,
@@ -41,6 +43,7 @@ import {
   providerActions,
   recorderActions,
   splitViewActions,
+  userInputActions,
 } from '../application/tool-metadata.ts'
 
 export interface BrowserRpcOptions {
@@ -272,6 +275,30 @@ export function bindBrowserRpc(ctx: Context, runtime: BrowserRuntime, options: B
         if (endpoint === 'extensions') {
           if (typeof payload.action !== 'string' || !extensionActions.includes(payload.action as BrowserExtensionAction)) return rpcFailure('unknown browser extension action')
           return rpcSuccess(await runtime.panelExtensions(sessionId, payload as unknown as BrowserExtensionInput))
+        }
+        if (endpoint === 'user_input') {
+          if (typeof payload.action !== 'string' || !userInputActions.includes(payload.action as BrowserUserInputAction)) return rpcFailure('unknown browser user input action')
+          if (typeof payload.viewId !== 'string' || payload.viewId.trim() === '') return rpcFailure('browser input requires viewId from the current live snapshot')
+          if (typeof payload.streamGeneration !== 'number' || !Number.isInteger(payload.streamGeneration) || payload.streamGeneration < 1) return rpcFailure('browser input requires a positive streamGeneration')
+          if (typeof payload.frameSequence !== 'number' || !Number.isInteger(payload.frameSequence) || payload.frameSequence < 1) return rpcFailure('browser input requires a positive frameSequence')
+          if (typeof payload.viewportGeneration !== 'number' || !Number.isInteger(payload.viewportGeneration) || payload.viewportGeneration < 0) return rpcFailure('browser input requires a non-negative viewportGeneration')
+          if (payload.action === 'mouse_click' || payload.action === 'mouse_down' || payload.action === 'mouse_move' || payload.action === 'mouse_up') {
+            if (typeof payload.x !== 'number' || !Number.isFinite(payload.x) || typeof payload.y !== 'number' || !Number.isFinite(payload.y)) return rpcFailure(`${payload.action} requires finite x and y`)
+          } else if (payload.action === 'mouse_wheel') {
+            if (typeof payload.x !== 'number' || !Number.isFinite(payload.x) || typeof payload.y !== 'number' || !Number.isFinite(payload.y) || typeof payload.deltaX !== 'number' || !Number.isFinite(payload.deltaX) || typeof payload.deltaY !== 'number' || !Number.isFinite(payload.deltaY)) return rpcFailure('mouse_wheel requires finite coordinates and deltas')
+          } else if (payload.action === 'key_press') {
+            if (typeof payload.key !== 'string' || payload.key === '') return rpcFailure('key_press requires key')
+            if (payload.modifiers !== undefined && (!Array.isArray(payload.modifiers) || payload.modifiers.some(modifier => !['Control', 'Alt', 'Shift', 'Meta'].includes(String(modifier))))) return rpcFailure('key_press modifiers must contain only Control, Alt, Shift, or Meta')
+          } else if (payload.action === 'insert_text' || payload.action === 'composition_commit') {
+            if (typeof payload.text !== 'string') return rpcFailure(`${payload.action} requires text`)
+            if (payload.action === 'composition_commit' && payload.text === '') return rpcFailure('composition_commit requires non-empty text')
+          } else if (payload.action === 'paste') {
+            if (payload.text !== undefined && typeof payload.text !== 'string') return rpcFailure('paste text must be a string')
+            if (payload.html !== undefined && typeof payload.html !== 'string') return rpcFailure('paste html must be a string')
+            if (payload.uriList !== undefined && typeof payload.uriList !== 'string') return rpcFailure('paste uriList must be a string')
+            if (payload.files !== undefined && (!Array.isArray(payload.files) || payload.files.length > 8 || payload.files.some(file => !isRecord(file) || typeof file.name !== 'string' || typeof file.mediaType !== 'string' || typeof file.data !== 'string'))) return rpcFailure('paste files must contain at most eight valid encoded files')
+          }
+          return rpcSuccess(await runtime.panelUserInput(sessionId, payload as unknown as BrowserUserInput))
         }
         if (endpoint === 'recorder') {
           if (typeof payload.action !== 'string' || !recorderActions.includes(payload.action as BrowserRecorderAction)) return rpcFailure('unknown browser recorder action')

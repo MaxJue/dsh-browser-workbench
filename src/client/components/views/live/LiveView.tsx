@@ -4,6 +4,11 @@ import { LivePane } from './LivePane.tsx'
 import { LiveControls } from './LiveControls.tsx'
 import { DiagnosticOverlay } from './DiagnosticOverlay.tsx'
 import { SplitDivider } from '../../common/SplitDivider.tsx'
+import type { usePointerGestures } from '../../../hooks/usePointerGestures.ts'
+import type { useImeProxy } from '../../../hooks/useImeProxy.ts'
+
+type LivePointerHandlers = ReturnType<typeof usePointerGestures>['livePointerHandlers']
+type ImeProxyHandlers = ReturnType<typeof useImeProxy>['imeProxyHandlers']
 
 export interface LiveViewProps {
   snapshot: BrowserPanelSnapshot
@@ -18,6 +23,10 @@ export interface LiveViewProps {
   topLiveRef: React.RefObject<HTMLImageElement | null>
   bottomLiveRef: React.RefObject<HTMLImageElement | null>
   splitContainerRef: React.RefObject<HTMLDivElement | null>
+  imeProxyRef: React.RefObject<HTMLTextAreaElement | null>
+  imeProxyHandlers: ImeProxyHandlers
+  pointerHandlers: LivePointerHandlers
+  onWheel: (event: React.WheelEvent<HTMLImageElement>, pane?: BrowserSplitViewPane) => void
   dividerProps: {
     onPointerDown: (event: React.PointerEvent<HTMLDivElement>) => void
     onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => void
@@ -48,6 +57,10 @@ export function LiveView({
   topLiveRef,
   bottomLiveRef,
   splitContainerRef,
+  imeProxyRef,
+  imeProxyHandlers,
+  pointerHandlers,
+  onWheel,
   dividerProps,
   onDragStart,
   onDragEnd,
@@ -66,6 +79,17 @@ export function LiveView({
 
   return (
     <div ref={livePanelRef} className={css.livePanel}>
+      {/* 实况是图片，没有可聚焦的输入框；这颗 1px 透明 textarea 代收键盘、输入法与粘贴。 */}
+      <textarea
+        ref={imeProxyRef}
+        className={css.imeProxy}
+        aria-label="浏览器输入法代理"
+        autoCapitalize="none"
+        autoCorrect="off"
+        spellCheck={false}
+        {...imeProxyHandlers}
+      />
+
       <LiveControls
         snapshot={snapshot}
         splitOrientation={splitOrientation}
@@ -102,6 +126,8 @@ export function LiveView({
             onFocusPane={() => onFocusPane('top')}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            onWheel={event => onWheel(event, 'top')}
+            pointerHandlers={pointerHandlers}
           />
           <SplitDivider
             orientation={splitOrientation}
@@ -120,6 +146,8 @@ export function LiveView({
             onFocusPane={() => onFocusPane('bottom')}
             onDragStart={onDragStart}
             onDragEnd={onDragEnd}
+            onWheel={event => onWheel(event, 'bottom')}
+            pointerHandlers={pointerHandlers}
           />
         </div>
       ) : (
@@ -136,6 +164,8 @@ export function LiveView({
               data-share-drag={shareDragArmed || undefined}
               onDragStart={onDragStart}
               onDragEnd={onDragEnd}
+              {...pointerHandlers()}
+              onWheel={onWheel}
             />
           )}
           {snapshot.frame === undefined || snapshot.activeViewId === undefined ? null : (

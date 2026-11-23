@@ -16,6 +16,7 @@ import type {
   BrowserRecorderInput,
   BrowserSplitViewInput,
   BrowserSplitViewPane,
+  BrowserUserInput,
 } from '../domain/protocol.ts'
 import { valueOf } from './panel-model.ts'
 
@@ -70,6 +71,7 @@ export interface Port {
   emulate(sessionId: string, input: BrowserEmulateInput): Promise<unknown>
   liveView(sessionId: string, input: BrowserLiveViewInput): Promise<unknown>
   splitView(sessionId: string, input: BrowserSplitViewInput): Promise<unknown>
+  userInput(sessionId: string, input: BrowserUserInput): Promise<unknown>
   recorder(sessionId: string, input: BrowserRecorderInput): Promise<unknown>
   close(sessionId: string, view: BrowserPanelView): Promise<void>
 }
@@ -97,6 +99,7 @@ export function createPort(connection: ConnectionHandle): Port {
     emulate: (sessionId, input) => call('emulate', { sessionId, ...input }),
     liveView: (sessionId, input) => call('live_view', { sessionId, ...input }),
     splitView: (sessionId, input) => call('split_view', { sessionId, ...input }),
+    userInput: (sessionId, input) => call('user_input', { sessionId, ...input }),
     recorder: (sessionId, input) => call('recorder', { sessionId, ...input }),
     close: async (sessionId, view) => { await call('close', { sessionId, view }) },
   }

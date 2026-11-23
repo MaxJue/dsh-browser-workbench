@@ -263,7 +263,19 @@ Cordis 插件 id: browser-tools
 | `description` | 「查看并接管 Agent 正在操作的浏览器」 |
 | `icon` | `BrowserGlyph`（`src/client/components/common/BrowserGlyph.tsx`） |
 
-`conversation.input.right` 不再注册：composer 旁没有绑定控件，也没有 `useAutoReveal` 的自动弹出面板。绑定选择在设置页完成，实况查看从右侧栏进入。
+`conversation.input.right` 不再注册：composer 旁没有绑定控件，绑定选择在设置页完成。面板的自动展开由 `src/client/auto-reveal-watcher.ts` 承担：它在 `ctx.effect` 里订阅 `ctx.uiSession` 的主 Session 与运行状态，仅当「本轮回答进行中 + 面板关闭 + `panel_activity` 探测到尚未展示过的页面内容」时调用 `controller.open('live')`；用户亲手关掉后本轮不再展开，轮次结束（running 转 false）后重置。探测按秒轮询，`panel_activity` 只读，不分配 View、不启动 screencast。
+
+#### 实况画面的键盘与指针
+
+面板里画的是 screencast 图片，不是真正可聚焦的网页，所以人的输入走一条独立的回注链路：
+
+1. **坐标投影**：`src/client/utils/geometry.ts` 按 `object-fit: contain` 的等比缩放与居中黑边，把点击位置换算成真实 Viewport 像素；落在黑边上直接丢弃。
+2. **指针手势**：`src/client/hooks/usePointerGestures.ts` 把按下 / 移动 / 松开接成一次完整手势，拖动按帧合流（同一帧只投递最后一个坐标），按下没被宿主接受时后续 move/up 全部丢弃。
+3. **键盘与输入法**：`src/client/hooks/useImeProxy.ts` 在面板里放一个 1px 透明 `textarea` 当输入法代理，点击画面时把它移到点击处并聚焦。可打印字符走 `insertText`，组合输入走 `composition_commit`（先 `Input.imeSetComposition` 再提交），特殊键走 `key_press`，粘贴走 `paste`（8 文件 / 单文件 8MB / 总计 16MB 上限）。
+4. **回注 RPC**：`port.userInput` 调面板专用端点 `user_input`，由 `src/input/user-input-actions.ts` 翻译成 CDP 的 `Input.dispatchMouseEvent` / `Input.insertText` / `Input.imeSetComposition` / `Input.dispatchKeyEvent`（键盘走 Playwright `keyboard.press`）。
+5. **帧身份校验**：每次输入携带 `viewId`、`streamGeneration`、`frameSequence`、`viewportGeneration`；宿主发现流代次或 Viewport 代次已经变化就返回 `STALE_LIVE_VIEW`，绝不把按下那一刻的坐标送进另一张画面。`panelUserInput` 与模型工具共用同一把 Session 锁，双方操作同一页面时按顺序串行。
+
+这条链路只服务人：它不是模型工具，也没有 `browser_input` 之类的工具入口，模型侧仍用 `browser_click` / `browser_type` / `browser_press_key`。
 
 ### 2. 设置页绑定分区
 
@@ -310,7 +322,7 @@ Cordis 插件 id: browser-tools
 | --- | --- |
 | `src/client/components/views/{console,debugger,diagnostic,emulation,extensions,network,performance,provider}/` | 除实况外的 8 个视图组件目录 |
 | `src/client/components/control/{BrowserControl,ControllerMenu,ArbitratedToolsDialog}.tsx` | composer 绑定控件、控制器菜单与仲裁工具对话框 |
-| `src/client/hooks/{useAutoReveal,useControllerBinding,usePanelSync}.ts` | 自动弹出面板、绑定状态订阅、面板同步 |
+| `src/client/hooks/{useControllerBinding,usePanelSync}.ts` | 绑定状态订阅、面板同步 |
 | `controller_set_registration_mode`（RPC 端点） | 旧的注册模式写入口，改由 `controller_set_browser_choice` 经配置写回间接生效 |
 
 `src/client/components/views/live/` 下的 `LiveView.tsx`、`LivePane.tsx`、`LiveControls.tsx`、`DiagnosticOverlay.tsx` 保留。
